@@ -7,8 +7,8 @@ import { Globe, Smartphone, BarChart3, Scan, Printer, Users } from 'lucide-react
 const features = [
     {
         icon: <Globe className="w-6 h-6 text-blue-600" />,
-        title: 'Website Toko Online',
-        description: 'Dapatkan website toko online eksklusif dengan nama brand Anda. Terintegrasi langsung dengan stok kasir.',
+        title: 'Sinkronisasi Cloud',
+        description: 'Data penjualan, stok, dan kasir otomatis tersinkronisasi dengan aman ke cloud secara real-time.',
     },
     {
         icon: <Smartphone className="w-6 h-6 text-green-600" />,
@@ -44,7 +44,7 @@ export const Features = () => {
                 <div className="text-center mb-16">
                     <h2 className="text-3xl font-bold text-[var(--foreground)] mb-4">Fitur Lengkap untuk Bisnis Modern</h2>
                     <p className="text-[var(--muted-foreground)] max-w-2xl mx-auto">
-                        Semua yang Anda butuhkan untuk mengelola dan mengembangkan bisnis, dari manajemen stok hingga penjualan online.
+                        Semua yang Anda butuhkan untuk mengelola dan mengembangkan bisnis, dari manajemen stok hingga pencatatan transaksi kasir secara offline maupun cloud.
                     </p>
                 </div>
 

@@ -25,13 +25,13 @@ export const Hero = () => {
                         🚀 Solusi #1 untuk UMKM Indonesia
                     </span>
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-[var(--foreground)] mb-6">
-                        Kelola Stok & Jualan Online <br className="hidden md:block" />
+                        Kelola Stok & Transaksi Kasir <br className="hidden md:block" />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-blue-400">
                             Dalam Satu Aplikasi
                         </span>
                     </h1>
                     <p className="text-lg md:text-xl text-[var(--muted-foreground)] max-w-2xl mx-auto mb-10">
-                        Aplikasi Kasir Cloud + Website Toko Online Instan. Pantau bisnis dari mana saja, kapan saja. Tanpa biaya tersembunyi.
+                        Aplikasi Kasir Cloud dengan sinkronisasi otomatis. Pantau bisnis dari mana saja, kapan saja. Tanpa biaya tersembunyi.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -45,10 +45,10 @@ export const Hero = () => {
 
                     <div className="mt-8 flex items-center justify-center gap-6 text-sm text-[var(--muted-foreground)]">
                         <div className="flex items-center gap-1">
-                            <CheckCircle size={16} className="text-green-500" /> Gratis Website
+                            <CheckCircle size={16} className="text-green-500" /> Sekali Bayar Selamanya
                         </div>
                         <div className="flex items-center gap-1">
-                            <CheckCircle size={16} className="text-green-500" /> Cloud Backup
+                            <CheckCircle size={16} className="text-green-500" /> Cloud Backup & Sync
                         </div>
                         <div className="flex items-center gap-1">
                             <CheckCircle size={16} className="text-green-500" /> Support 24/7
@@ -71,7 +71,7 @@ export const Hero = () => {
                         */}
                         <Image
                             src="/images/dashboard.png"
-                            alt="Kiosly Dashboard Preview"
+                            alt="Cashiro Dashboard Preview"
                             fill
                             className="object-cover object-top"
                             priority

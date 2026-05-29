@@ -6,29 +6,13 @@ import { Check, Star } from 'lucide-react';
 
 const pricingPlans = [
     {
-        name: 'Basic',
-        period: 'Bulanan',
+        name: 'Lifetime Access',
+        period: 'Sekali Bayar Selamanya',
         price: 'IDR 50.000',
-        description: 'Cocok untuk usaha rintisan yang ingin go digital.',
-        features: ['Aplikasi Kasir Android', 'Website Toko Online Basic', 'Laporan Penjualan Standar', 'Support via WhatsApp'],
-        ctaLink: 'https://wa.me/62851?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Paket+Basic+%28Bulanan%29',
-    },
-    {
-        name: 'Pro',
-        period: '1 Tahun',
-        price: 'IDR 450.000',
-        description: 'Pilihan terbaik untuk UMKM yang sedang berkembang pesat.',
-        features: ['Semua Fitur Basic', 'Website Toko Online Premium', 'Laporan Laba Rugi Otomatis', 'Manajemen Stok Multi-Gudang', 'Prioritas Support'],
+        description: 'Akses penuh ke semua fitur Cashiro POS selamanya tanpa biaya bulanan atau tahunan.',
+        features: ['Aplikasi Kasir Android', 'Laporan Laba Rugi Otomatis', 'Manajemen Stok & Kategori', 'Backup & Sinkronisasi Cloud', 'Manajemen Staf & Pelanggan', 'Support via WhatsApp'],
         isPopular: true,
-        ctaLink: 'https://wa.me/62851?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Paket+Pro+%281+Tahun%29',
-    },
-    {
-        name: 'Enterprise',
-        period: '2 Tahun',
-        price: 'IDR 800.000',
-        description: 'Solusi jangka panjang paling hemat untuk bisnis mapan.',
-        features: ['Semua Fitur Pro', 'Konsultasi Bisnis Eksklusif', 'Custom Domain (Coming Soon)', 'Backup Data Prioritas', 'Training Penggunaan Gratis'],
-        ctaLink: 'https://wa.me/62851?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Paket+Enterprise+%282+Tahun%29',
+        ctaLink: 'https://wa.me/62851?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Lisensi+Cashiro+Lifetime',
     },
 ];
 
@@ -41,24 +25,19 @@ export const Pricing = () => {
                 <div className="text-center mb-16">
                     <h2 className="text-3xl font-bold text-[var(--foreground)] mb-4">Investasi Terjangkau</h2>
                     <p className="text-[var(--muted-foreground)]">
-                        Pilih paket yang sesuai dengan kebutuhan dan skala bisnis Anda.
+                        Miliki aplikasi kasir profesional dengan skema sekali bayar, tanpa biaya tambahan lainnya.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="max-w-md mx-auto">
                     {pricingPlans.map((plan, index) => (
                         <div
                             key={index}
-                            className={`relative rounded-2xl p-8 transition-all duration-300 ${plan.isPopular
-                                    ? 'bg-white dark:bg-slate-800 ring-2 ring-[var(--primary)] shadow-xl scale-105 z-10'
-                                    : 'bg-white/50 dark:bg-slate-900/50 border border-[var(--border)] hover:shadow-lg'
-                                }`}
+                            className="relative rounded-2xl p-8 transition-all duration-300 bg-white dark:bg-slate-800 ring-2 ring-[var(--primary)] shadow-xl z-10"
                         >
-                            {plan.isPopular && (
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--accent)] text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                                    <Star size={14} fill="white" /> Paling Laris
-                                </div>
-                            )}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--accent)] text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                                <Star size={14} fill="white" /> Sekali Bayar
+                            </div>
 
                             <div className="mb-6">
                                 <h3 className="text-xl font-bold text-[var(--foreground)]">{plan.name}</h3>
@@ -67,7 +46,6 @@ export const Pricing = () => {
 
                             <div className="mb-6">
                                 <span className="text-3xl font-bold text-[var(--primary)]">{plan.price}</span>
-                                {/* <span className="text-sm text-[var(--muted-foreground)]">/{plan.period === 'Bulanan' ? 'bulan' : 'thn'}</span> */}
                             </div>
 
                             <p className="text-sm text-[var(--muted-foreground)] mb-8 min-h-[40px]">
@@ -84,7 +62,7 @@ export const Pricing = () => {
                             </div>
 
                             <Button
-                                variant={plan.isPopular ? 'primary' : 'outline'}
+                                variant="primary"
                                 className="w-full"
                                 onClick={() => window.open(plan.ctaLink, '_blank')}
                             >

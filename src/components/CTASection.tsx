@@ -16,7 +16,7 @@ export const CTASection = () => {
                     Siap Meningkatkan Omzet Bisnis Anda?
                 </h2>
                 <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">
-                    Gabung dengan 5.000+ UMKM lainnya yang telah beralih ke Kiosly. Buat website toko online Anda sekarang, gratis!
+                    Gabung dengan 5.000+ UMKM lainnya yang telah beralih ke Cashiro. Kelola bisnis Anda dengan mudah hari ini!
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button size="lg" className="bg-white text-[var(--primary)] hover:bg-gray-100 w-full sm:w-auto">

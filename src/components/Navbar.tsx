@@ -20,7 +20,6 @@ export const Navbar = () => {
 
     const navLinks = [
         { name: 'Fitur', href: '#features' },
-        { name: 'Toko Online', href: '#online-store' },
         { name: 'Harga', href: '#pricing' },
         { name: 'Testimoni', href: '#testimonials' },
     ];
@@ -38,7 +37,7 @@ export const Navbar = () => {
                             <ShoppingBag size={20} />
                         </div>
                         <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--primary)] to-blue-600">
-                            Kiosly
+                            Cashiro
                         </span>
                     </Link>
 

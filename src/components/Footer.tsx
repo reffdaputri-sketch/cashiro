@@ -8,9 +8,9 @@ export const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
                     {/* Brand */}
                     <div>
-                        <h3 className="text-2xl font-bold text-[var(--primary)] mb-4">Kiosly</h3>
+                        <h3 className="text-2xl font-bold text-[var(--primary)] mb-4">Cashiro</h3>
                         <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">
-                            Solusi kasir pintar dan toko online terintegrasi untuk membantu UMKM Indonesia naik kelas.
+                            Solusi kasir pintar terintegrasi cloud untuk membantu UMKM Indonesia naik kelas.
                         </p>
                     </div>
 
@@ -19,7 +19,6 @@ export const Footer = () => {
                         <h4 className="font-semibold text-[var(--foreground)] mb-4">Produk</h4>
                         <ul className="space-y-2 text-sm text-[var(--muted-foreground)]">
                             <li><Link href="#features" className="hover:text-[var(--primary)]">Sistem Kasir</Link></li>
-                            <li><Link href="#online-store" className="hover:text-[var(--primary)]">Toko Online</Link></li>
                             <li><Link href="#pricing" className="hover:text-[var(--primary)]">Harga Paket</Link></li>
                         </ul>
                     </div>
@@ -48,7 +47,7 @@ export const Footer = () => {
                 </div>
 
                 <div className="pt-8 border-t border-[var(--border)] text-center text-sm text-[var(--muted-foreground)]">
-                    <p>&copy; {new Date().getFullYear()} Kiosly. All rights reserved.</p>
+                    <p>&copy; {new Date().getFullYear()} Cashiro. All rights reserved.</p>
                 </div>
             </div>
         </footer>

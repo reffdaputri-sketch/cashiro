@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Kiosly - Solusi Kasir Pintar & Toko Online UMKM",
-  description: "Aplikasi Cloud Kasir terpadu untuk kelola stok dan penjualan. Buat Website Toko Online hanya dengan hitungan detik!",
+  title: "Cashiro - Solusi Kasir Pintar & Cloud Sync UMKM",
+  description: "Aplikasi Cloud Kasir terpadu untuk kelola stok dan transaksi penjualan dengan sinkronisasi cloud real-time.",
 };
 
 export default function RootLayout({

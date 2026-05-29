@@ -16,8 +16,8 @@ export default function DeleteAccount() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const subject = `Permohonan Hapus Akun Kiosly - ${formData.name}`;
-        const body = `Halo Admin Kiosly,
+        const subject = `Permohonan Hapus Akun Cashiro - ${formData.name}` ;
+        const body = `Halo Admin Cashiro,
 
 Saya ingin mengajukan permohonan penghapusan akun secara permanen.
 
@@ -32,7 +32,7 @@ Saya mengerti bahwa tindakan ini akan menghapus seluruh data saya secara permane
 
 Terima kasih.`;
 
-        const mailtoLink = `mailto:admin@kiosly.biz.id?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        const mailtoLink = `mailto:admin@cashiro.biz.id?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` ;
         window.location.href = mailtoLink;
     };
 

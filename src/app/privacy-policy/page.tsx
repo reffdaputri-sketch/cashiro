@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
                     </p>
 
                     <p className="mb-6">
-                        Kiosly ("kami", "kita", atau "milik kami") mengoperasikan aplikasi mobile Kiosly dan website kiosly.web.id.
+                        Cashiro ("kami", "kita", atau "milik kami") mengoperasikan aplikasi mobile Cashiro dan website cashiro.web.id.
                         Halaman ini memberitahu Anda tentang kebijakan kami mengenai pengumpulan, penggunaan, dan pengungkapan Data Pribadi saat Anda menggunakan Layanan kami.
                     </p>
 
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
                     </ul>
 
                     <h2 className="text-xl font-semibold text-[var(--foreground)] mt-8 mb-4">2. Penggunaan Data</h2>
-                    <p className="mb-4">Kiosly menggunakan data yang dikumpulkan untuk berbagai tujuan:</p>
+                    <p className="mb-4">Cashiro menggunakan data yang dikumpulkan untuk berbagai tujuan:</p>
                     <ul className="list-disc pl-5 mb-4 space-y-2">
                         <li>Untuk menyediakan dan memelihara Layanan kami</li>
                         <li>Untuk memberitahu Anda tentang perubahan pada Layanan kami</li>
