@@ -93,3 +93,33 @@ CREATE POLICY "Service role full access seller_products" ON seller_products
 DROP POLICY IF EXISTS "Service role full access seller_orders" ON seller_orders;
 CREATE POLICY "Service role full access seller_orders" ON seller_orders
   FOR ALL USING (auth.role() = 'service_role');
+
+-- ============================================================
+-- AFFILIATE & REFERRAL SYSTEM
+-- ============================================================
+
+-- Tambahkan kolom referred_by ke tabel stores
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES stores(id);
+
+-- Buat tabel referral_rewards
+CREATE TABLE IF NOT EXISTS referral_rewards (
+  id            BIGSERIAL PRIMARY KEY,
+  referrer_id   UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  referred_id   UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  amount        NUMERIC(15, 2) NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(referred_id)
+);
+
+-- Index untuk performa
+CREATE INDEX IF NOT EXISTS idx_stores_referred_by ON stores(referred_by);
+CREATE INDEX IF NOT EXISTS idx_referral_rewards_referrer_id ON referral_rewards(referrer_id);
+
+-- Enable RLS untuk tabel referral_rewards
+ALTER TABLE referral_rewards ENABLE ROW LEVEL SECURITY;
+
+-- Service role full access untuk API backend
+DROP POLICY IF EXISTS "Service role full access referral_rewards" ON referral_rewards;
+CREATE POLICY "Service role full access referral_rewards" ON referral_rewards
+  FOR ALL USING (auth.role() = 'service_role');
+

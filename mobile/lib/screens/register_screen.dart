@@ -31,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _pinController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   final _apiService = ApiService();
 
   @override
@@ -50,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     _pinController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
   
@@ -80,6 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final phone = _phoneController.text.trim();
     final address = _addressController.text.trim();
     final rawPin = _pinController.text.trim();
+    final referralCode = _referralCodeController.text.trim();
     final pinHash = AuthService().hashPin(rawPin);
     String storeId = '';
 
@@ -97,6 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           phone: phone,
           address: address,
           pin: pinHash,
+          referralCode: referralCode.isNotEmpty ? referralCode : null,
         );
         storeId = result['store_id'];
       }
@@ -294,6 +298,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: true,
                       maxLength: 6,
                       validator: (value) => (value == null || value.length < 4) ? 'PIN minimal 4 digit' : null,
+                    ),
+                    TextFormField(
+                      controller: _referralCodeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Kode Referral (Opsional)',
+                        hintText: 'CSH-XXXX-XXXX',
+                        prefixIcon: Icon(Icons.card_giftcard),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(

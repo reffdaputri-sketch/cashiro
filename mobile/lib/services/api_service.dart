@@ -62,6 +62,7 @@ class ApiService {
     required String phone,
     required String address,
     required String pin,
+    String? referralCode,
   }) async {
     try {
       final response = await http.post(
@@ -75,6 +76,7 @@ class ApiService {
           'phone': phone,
           'address': address,
           'pin': pin,
+          'referral_code': referralCode,
         }),
       );
 
