@@ -461,6 +461,7 @@ class ApiService {
       rethrow;
     }
   }
+  Future<Map<String, dynamic>> getSellerReferrals(String slug) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/sellers/$slug/referrals'));
       if (response.statusCode == 200) {
