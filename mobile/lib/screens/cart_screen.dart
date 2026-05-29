@@ -140,9 +140,20 @@ class _CartScreenState extends State<CartScreen> {
                                           style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w500),
                                         ),
                                       ] else ...[
-                                        Text(
-                                          currencyFormatter.format(item.price),
-                                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              currencyFormatter.format(item.price),
+                                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Icon(Icons.local_offer_outlined, size: 11, color: Colors.blue[600]),
+                                            const SizedBox(width: 2),
+                                            Text(
+                                              '+ Diskon',
+                                              style: TextStyle(color: Colors.blue[600], fontSize: 10, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ],
@@ -200,8 +211,33 @@ class _CartScreenState extends State<CartScreen> {
                 _buildSummaryRow('Subtotal:', currencyFormatter.format(cart.subtotal)),
                 InkWell(
                   onTap: () => _showDiscountDialog(context, cart),
-                  child: _buildSummaryRow('Diskon:', '- ${currencyFormatter.format(cart.discount)}', 
-                    valueColor: Colors.red),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text('Diskon Transaksi:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                            Text(
+                              cart.discount > 0 ? ' Ubah' : ' + Tambah',
+                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '- ${currencyFormatter.format(cart.discount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: cart.discount > 0 ? Colors.red : Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
