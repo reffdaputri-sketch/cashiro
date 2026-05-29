@@ -141,7 +141,7 @@ class _WithdrawCommissionScreenState extends State<WithdrawCommissionScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, py: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -347,7 +347,7 @@ class _WithdrawCommissionScreenState extends State<WithdrawCommissionScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.between,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
@@ -359,7 +359,7 @@ class _WithdrawCommissionScreenState extends State<WithdrawCommissionScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.between,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
                                             dateStr,
