@@ -8,11 +8,11 @@ const pricingPlans = [
     {
         name: 'Lifetime Access',
         period: 'Sekali Bayar Selamanya',
-        price: 'IDR 50.000',
+        price: 'IDR 25.000',
         description: 'Akses penuh ke semua fitur Cashiro POS selamanya tanpa biaya bulanan atau tahunan.',
         features: ['Aplikasi Kasir Android', 'Laporan Laba Rugi Otomatis', 'Manajemen Stok & Kategori', 'Backup & Sinkronisasi Cloud', 'Manajemen Staf & Pelanggan', 'Support via WhatsApp'],
         isPopular: true,
-        ctaLink: 'https://wa.me/62851?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Lisensi+Cashiro+Lifetime',
+        ctaLink: 'https://wa.me/6285157578692?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Lisensi+Cashiro+Lifetime',
     },
 ];
 

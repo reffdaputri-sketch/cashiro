@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.DUITKU_API_KEY || '';
     const inquiryUrl = process.env.DUITKU_INQUIRY_URL || 'https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry';
     const merchantOrderId = `ORDER-${Date.now()}`;
-    const paymentAmount = 50000; // Harga lisensi Rp 50.000
+    const paymentAmount = 25000; // Harga lisensi Rp 25.000
 
     // Duitku Signature: md5(merchantCode + merchantOrderId + paymentAmount + apiKey)
     const signatureSource = merchantCode + merchantOrderId + paymentAmount + apiKey;
