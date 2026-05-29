@@ -22,6 +22,9 @@ interface SellerData {
     phone: string;
     address: string;
     city_id: number | null;
+    bank_name: string;
+    bank_account: string;
+    bank_account_name: string;
   };
   products: Product[];
 }
@@ -136,7 +139,7 @@ function StoreContent({ data, slug }: { data: SellerData; slug: string }) {
       )}
 
       {/* Cart Drawer */}
-      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} />}
+      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} bankName={data.seller.bank_name} bankAccount={data.seller.bank_account} bankAccountName={data.seller.bank_account_name} />}
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }

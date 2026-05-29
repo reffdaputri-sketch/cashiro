@@ -7,13 +7,16 @@ interface CartDrawerProps {
   slug: string;
   onClose: () => void;
   storeCityId: number | null;
+  bankName: string;
+  bankAccount: string;
+  bankAccountName: string;
 }
 
 function formatRupiah(num: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 }
 
-export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerProps) {
+export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
@@ -425,6 +428,28 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
               </button>
             </div>
 
+            {paymentMethod === 'transfer' && (bankName || bankAccount) && (
+              <div className="bank-info-box">
+                <h4 className="bank-info-title">🏦 Rekening Tujuan Transfer</h4>
+                <div className="bank-info-row">
+                  <span className="bank-label">Bank</span>
+                  <span className="bank-value">{bankName || '-'}</span>
+                </div>
+                <div className="bank-info-row">
+                  <span className="bank-label">No. Rekening</span>
+                  <span className="bank-value">{bankAccount || '-'}</span>
+                </div>
+                <div className="bank-info-row">
+                  <span className="bank-label">Atas Nama</span>
+                  <span className="bank-value">{bankAccountName || '-'}</span>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'transfer' && !bankName && !bankAccount && (
+              <p className="error-text">⚠️ Penjual belum mengatur rekening bank. Silakan hubungi penjual atau pilih metode pembayaran lain.</p>
+            )}
+
             <div className="order-summary-box">
               {items.map(i => (
                 <div key={i.product_id} className="order-summary-row">
@@ -531,6 +556,13 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
           .payment-options { display: flex; gap: 10px; }
           .payment-option { flex: 1; padding: 12px 8px; border: 2px solid #e0e0f0; border-radius: 12px; background: white; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: all 0.2s; text-align: center; }
           .payment-option.active { border-color: #006d77; background: #e8f7f8; color: #006d77; }
+
+          .bank-info-box { background: linear-gradient(135deg, #e8f7f8, #d1f0f4); padding: 16px; border-radius: 14px; border: 1.5px solid #006d77; }
+          .bank-info-title { font-size: 14px; font-weight: 700; color: #006d77; margin-bottom: 12px; }
+          .bank-info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(0,109,119,0.1); }
+          .bank-info-row:last-child { border-bottom: none; }
+          .bank-label { font-size: 13px; color: #555; }
+          .bank-value { font-size: 13px; font-weight: 700; color: #1a1a2e; }
 
           .order-summary-box { background: #f8f9ff; border-radius: 14px; padding: 14px; border: 1.5px solid #e8e8f8; }
           .order-summary-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: #555; }
