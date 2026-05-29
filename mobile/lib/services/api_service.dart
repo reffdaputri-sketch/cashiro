@@ -4,8 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  // Use 192.168.100.2:3000 (PC's network IP) to allow physical mobile devices on the same Wi-Fi to connect.
-  // Use http://10.0.2.2:3000 if running on Android Emulator.
+  // Untuk production: 'https://cashiro.vercel.app'
+  // Untuk testing di device Android (ganti IP sesuai IP PC kamu di WiFi):
+  // Cek IP: jalankan `ipconfig` di terminal, lihat IPv4 Address
+  // Untuk emulator: gunakan http://10.0.2.2:3000
   static const String baseUrl = 'https://cashiro.vercel.app';
 
   /// Sends a request to Duitku payment gateway via Next.js to buy a license

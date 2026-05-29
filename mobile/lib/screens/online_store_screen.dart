@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OnlineStoreScreen extends StatefulWidget {
   const OnlineStoreScreen({super.key});
@@ -298,47 +299,53 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Expanded(child: Text('#${o['id']} · ${o['customer_name']?.isNotEmpty == true ? o['customer_name'] : 'Anonim'}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
-                        _statusChip(status),
-                      ]),
-                      if ((o['customer_phone'] ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text('📱 ${o['customer_phone']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      ],
-                      const SizedBox(height: 4),
-                      Text('🕐 $createdAt', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      const Divider(height: 16),
-                      // Items
-                      if (o['items'] is List)
-                        ...List.from(o['items']).map((item) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('${item['name']} ×${item['qty']}',
-                                  style: const TextStyle(fontSize: 13)),
-                              Text(_formatRupiah(item['total'] ?? 0),
-                                  style: const TextStyle(fontSize: 13)),
-                            ],
-                          ),
-                        )),
-                      const Divider(height: 12),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Row(children: [
-                          Icon(method == 'qris' ? Icons.qr_code : Icons.payments_outlined, size: 16, color: Colors.grey),
-                          const SizedBox(width: 4),
-                          Text(method == 'qris' ? 'QRIS' : 'Manual', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => _showOrderDetail(context, o, primary),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Expanded(child: Text('#${o['id']} · ${o['customer_name']?.isNotEmpty == true ? o['customer_name'] : 'Anonim'}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                            _statusChip(status),
+                          ]),
+                          if ((o['customer_phone'] ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text('📱 ${o['customer_phone']}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                          const SizedBox(height: 4),
+                          Text('🕐 $createdAt', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Divider(height: 16),
+                          // Items summary (max 2)
+                          if (o['items'] is List)
+                            ...List.from(o['items']).take(2).map((item) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('${item['name']} ×${item['qty']}',
+                                      style: const TextStyle(fontSize: 13)),
+                                  Text(_formatRupiah(item['total'] ?? 0),
+                                      style: const TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            )),
+                          if ((o['items'] as List?)?.length != null && (o['items'] as List).length > 2)
+                            const Text('...', style: TextStyle(color: Colors.grey)),
+                          const Divider(height: 12),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Row(children: [
+                              Icon(method == 'qris' ? Icons.qr_code : Icons.payments_outlined, size: 16, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(method == 'qris' ? 'QRIS' : 'Manual', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            ]),
+                            Text(_formatRupiah(o['total_amount'] ?? 0),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
+                          ]),
                         ]),
-                        Text(_formatRupiah(o['total_amount'] ?? 0),
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
-                      ]),
-                    ]),
-                  ),
+                      ),
+                    ),
                 );
               },
             ),
@@ -354,6 +361,175 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
       default: bg = Colors.orange.shade100; fg = Colors.orange.shade700; label = '⏳ Pending';
     }
     return _chip(label, bg, fg);
+  }
+
+  void _showOrderDetail(BuildContext context, Map<String, dynamic> o, Color primary) {
+    final status = o['status'] as String? ?? 'pending';
+    final method = o['payment_method'] as String? ?? 'manual';
+    final createdAt = o['created_at'] != null
+        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(o['created_at']).toLocal())
+        : '-';
+    final address = o['customer_address'] as String? ?? '';
+    final phone = o['customer_phone'] as String? ?? '';
+    final notes = o['notes'] as String? ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Detail Pesanan #${o['id']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const Divider(),
+              
+              // Status & Info
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Status', style: TextStyle(color: Colors.grey)),
+                  _statusChip(status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Waktu', style: TextStyle(color: Colors.grey)),
+                  Text(createdAt, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Metode', style: TextStyle(color: Colors.grey)),
+                  Text(method == 'qris' ? 'QRIS Otomatis' : 'Manual / COD', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              
+              const SizedBox(height: 24),
+              const Text('Info Pembeli', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              _detailRow(Icons.person, o['customer_name']?.isNotEmpty == true ? o['customer_name'] : 'Anonim'),
+              _detailRow(Icons.phone, phone.isNotEmpty ? phone : '-'),
+              _detailRow(Icons.location_on, address.isNotEmpty ? address : 'Tidak ada alamat'),
+              
+              if (address.isNotEmpty || phone.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (phone.isNotEmpty)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final formattedPhone = phone.startsWith('0') ? '62${phone.substring(1)}' : phone.replaceAll(RegExp(r'[^0-9]'), '');
+                            final url = Uri.parse('https://wa.me/$formattedPhone');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          icon: const Icon(Icons.chat, size: 16, color: Colors.green),
+                          label: const Text('Chat WA', style: TextStyle(color: Colors.green)),
+                          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.green)),
+                        ),
+                      ),
+                    if (phone.isNotEmpty && address.isNotEmpty) const SizedBox(width: 8),
+                    if (address.isNotEmpty)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: address));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alamat disalin')));
+                          },
+                          icon: const Icon(Icons.copy, size: 16),
+                          label: const Text('Copy Alamat'),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+
+              if (notes.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.note, size: 16, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('Catatan: $notes', style: const TextStyle(fontSize: 13))),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+              const Text('Daftar Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  children: [
+                    if (o['items'] is List)
+                      ...List.from(o['items']).map((item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('${item['name']} ×${item['qty']}'),
+                            Text(_formatRupiah(item['total'] ?? 0)),
+                          ],
+                        ),
+                      )),
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(_formatRupiah(o['total_amount'] ?? 0), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: primary)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
   }
 
   // ─── TAB LINK TOKO ───

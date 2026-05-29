@@ -6,7 +6,7 @@ import crypto from 'crypto';
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const { customer_name, customer_phone, items, payment_method, notes } = await req.json();
+    const { customer_name, customer_phone, customer_address, items, payment_method, notes } = await req.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Items pesanan tidak boleh kosong' }, { status: 400 });
@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
     const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id, balance, store_id, stores(store_name)')
+      .select('id, balance, store_id, stores(store_name, phone)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
@@ -114,6 +114,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         seller_id: seller.id,
         customer_name: customer_name || '',
         customer_phone: customer_phone || '',
+        customer_address: customer_address || '',
         items: enrichedItems,
         total_amount: totalAmount,
         payment_method: payment_method || 'manual',
@@ -135,6 +136,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       total_amount: order.total_amount,
       status: order.status,
       payment_url: order.payment_url || null,
+      seller_phone: (seller as any).stores?.phone || '',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

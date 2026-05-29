@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS seller_orders (
   seller_id      BIGINT NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
   customer_name  TEXT DEFAULT '',
   customer_phone TEXT DEFAULT '',
+  customer_address TEXT DEFAULT '', -- Alamat pengiriman
   items          JSONB NOT NULL,   -- [{productId, name, qty, price, discount}]
   total_amount   NUMERIC(15, 2) NOT NULL,
   payment_method TEXT DEFAULT 'manual',  -- 'manual' | 'qris'

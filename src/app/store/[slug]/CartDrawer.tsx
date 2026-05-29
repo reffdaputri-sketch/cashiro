@@ -17,12 +17,14 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'manual' | 'qris'>('manual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [qrisUrl, setQrisUrl] = useState('');
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [waLink, setWaLink] = useState('');
 
   const handleOrder = async () => {
     setLoading(true);
@@ -31,6 +33,7 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
       const payload = {
         customer_name: name,
         customer_phone: phone,
+        customer_address: address,
         notes,
         payment_method: paymentMethod,
         items: items.map(i => ({ product_id: i.product_id, qty: i.qty })),
@@ -56,6 +59,26 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
         setQrisUrl(data.payment_url);
         setStep('qris');
       } else {
+        if (data.seller_phone) {
+          const formattedPhone = data.seller_phone.startsWith('0') 
+            ? '62' + data.seller_phone.substring(1) 
+            : data.seller_phone.replace(/[^0-9]/g, '');
+          
+          const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
+Nama: ${name || 'Anonim'}
+No. HP: ${phone || '-'}
+Alamat: ${address || '-'}
+
+*Pesanan:*
+${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
+
+Catatan: ${notes || '-'}
+*Total: ${formatRupiah(total)}*
+
+Tolong segera diproses ya, terima kasih!`;
+          
+          setWaLink(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(waMessage)}`);
+        }
         setStep('success');
       }
     } catch (e: any) {
@@ -115,11 +138,14 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
         {/* CHECKOUT */}
         {step === 'checkout' && (
           <div className="drawer-body">
-            <label className="form-label">Nama Pemesan (Opsional)</label>
+            <label className="form-label">Nama Pemesan</label>
             <input className="form-input" placeholder="Masukkan nama" value={name} onChange={e => setName(e.target.value)} />
 
-            <label className="form-label">No. WhatsApp (Opsional)</label>
+            <label className="form-label">No. WhatsApp</label>
             <input className="form-input" placeholder="08xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} type="tel" />
+
+            <label className="form-label">Alamat Pengiriman (Wajib untuk dikirim)</label>
+            <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
 
             <label className="form-label">Catatan (Opsional)</label>
             <textarea className="form-input" placeholder="Catatan pesanan..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
@@ -184,9 +210,17 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
           <div className="drawer-body text-center">
             <div className="success-icon">✅</div>
             <h3>Pesanan Berhasil!</h3>
-            <p className="success-desc">Pesanan Anda sudah diterima. Penjual akan segera menghubungi Anda untuk konfirmasi pembayaran.</p>
+            <p className="success-desc">Pesanan Anda sudah diterima. Penjual akan segera menghubungi Anda untuk konfirmasi.</p>
             <p className="order-id-text">ID Pesanan: #{orderId}</p>
-            <button className="primary-btn" onClick={onClose}>Kembali ke Toko</button>
+            
+            {waLink && (
+              <a href={waLink} target="_blank" rel="noopener noreferrer" className="primary-btn" style={{ textDecoration: 'none', display: 'block', margin: '20px 0' }}>
+                💬 Lanjutkan ke WhatsApp
+              </a>
+            )}
+            <button className={waLink ? "secondary-btn" : "primary-btn"} onClick={onClose} style={{ width: '100%' }}>
+              Kembali ke Toko
+            </button>
           </div>
         )}
 
