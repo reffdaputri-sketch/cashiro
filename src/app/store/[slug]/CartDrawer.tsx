@@ -525,6 +525,7 @@ Tolong segera diproses ya, terima kasih!`;
           .form-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; display: block; }
           .form-input { width: 100%; padding: 12px; border: 1.5px solid #e0e0f0; border-radius: 12px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; resize: none; background: white; }
           .form-input:focus { border-color: #006d77; }
+          textarea.form-input { min-height: 80px; resize: vertical; }
           
           .shipping-box { background: #f0f4f8; padding: 16px; border-radius: 12px; border: 1px solid #d0e0e8; margin: 8px 0; }
           .shipping-title { font-size: 14px; font-weight: 700; color: #006d77; margin-bottom: 12px; }
