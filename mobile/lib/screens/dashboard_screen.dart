@@ -10,8 +10,7 @@ import 'package:mobile/screens/history_screen.dart';
 import 'package:mobile/screens/cash_flow_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
 
-import 'package:mobile/screens/category_list_screen.dart';
-import 'package:mobile/screens/customer_list_screen.dart';
+
 import 'package:mobile/screens/stock_report_screen.dart';
 import 'package:mobile/screens/printer_settings_screen.dart';
 import 'package:mobile/screens/master_data_screen.dart';
@@ -291,20 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Master Data',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen())),
                   ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.category_outlined,
-                    color: Colors.purple,
-                    title: 'Kategori',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryListScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.person_search_outlined,
-                    color: Colors.green,
-                    title: 'Pelanggan',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerListScreen())),
-                  ),
+
                   _buildGridItem(
                     context,
                     icon: Icons.storefront_outlined,
