@@ -5,6 +5,7 @@ import 'package:mobile/screens/staff_list_screen.dart';
 import 'package:mobile/screens/edit_store_screen.dart';
 import 'package:mobile/screens/report_screen.dart';
 import 'package:mobile/screens/theme_settings_screen.dart';
+import 'package:mobile/screens/referral_management_screen.dart';
 import 'package:mobile/screens/history_screen.dart';
 import 'package:mobile/screens/cash_flow_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
@@ -272,13 +273,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: 'Staf',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen())),
                   ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.settings_outlined,
-                    color: Colors.orange,
-                    title: 'Pengaturan',
-                    onTap: () => _showSettingsBottomSheet(context),
-                  ),
+                    _buildGridItem(
+                      context,
+                      icon: Icons.group_outlined,
+                      color: Colors.deepPurple,
+                      title: 'Referral',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen())),
+                    ),
+                    _buildGridItem(
+                      context,
+                      icon: Icons.settings_outlined,
+                      color: Colors.orange,
+                      title: 'Pengaturan',
+                      onTap: () => _showSettingsBottomSheet(context),
+                    ),
                 ],
               ),
             ),

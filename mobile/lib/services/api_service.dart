@@ -76,7 +76,7 @@ class ApiService {
           'phone': phone,
           'address': address,
           'pin': pin,
-          'referral_code': referralCode,
+          if (referralCode != null && referralCode.isNotEmpty) 'referral_code': referralCode,
         }),
       );
 
@@ -416,6 +416,20 @@ class ApiService {
     } catch (e) {
       debugPrint('getSellerBalance Error: $e');
       return 0;
+    }
+  }
+
+  /// Ambil data referral dan reward affiliate
+  Future<Map<String, dynamic>> getSellerReferrals(String slug) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/sellers/$slug/referrals'));
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('getSellerReferrals Error: $e');
+      rethrow;
     }
   }
 }
