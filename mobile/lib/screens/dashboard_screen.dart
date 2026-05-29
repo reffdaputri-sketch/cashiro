@@ -11,7 +11,6 @@ import 'package:mobile/screens/expense_screen.dart';
 
 import 'package:mobile/screens/category_list_screen.dart';
 import 'package:mobile/screens/customer_list_screen.dart';
-import 'package:mobile/screens/debt_list_screen.dart';
 import 'package:mobile/screens/stock_report_screen.dart';
 import 'package:mobile/screens/printer_settings_screen.dart';
 import 'package:mobile/screens/master_data_screen.dart';
@@ -219,10 +218,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   _buildGridItem(
                     context,
-                    icon: Icons.assignment_late_rounded,
-                    color: Colors.red,
-                    title: 'Hutang',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtListScreen())),
+                    icon: Icons.storefront_outlined,
+                    color: const Color(0xFF006d77),
+                    title: 'Toko Online',
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
                   ),
                   _buildGridItem(
                     context,
@@ -279,13 +278,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.orange,
                     title: 'Pengaturan',
                     onTap: () => _showSettingsBottomSheet(context),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.storefront_outlined,
-                    color: const Color(0xFF006d77),
-                    title: 'Toko Online',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
                   ),
                 ],
               ),
