@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     const { data: existingStore } = await supabase
       .from('stores')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', email.trim())
       .maybeSingle();
 
     if (existingStore) {
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     const { data: store, error: storeError } = await supabase
       .from('stores')
       .insert({
-        email,
+        email: email.toLowerCase().trim(),
         store_name,
         license_key,
         owner_name: owner_name || 'Pemilik',

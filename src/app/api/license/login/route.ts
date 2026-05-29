@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const { data: store, error: storeError } = await supabase
       .from('stores')
       .select('*')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', email.trim())
       .eq('license_key', license_key.trim())
       .single();
 

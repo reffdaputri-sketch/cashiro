@@ -18,6 +18,8 @@ import 'package:mobile/screens/master_data_screen.dart';
 import 'dart:async';
 import 'package:mobile/services/sync_service.dart';
 import 'package:mobile/screens/online_store_screen.dart';
+import 'package:mobile/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -30,6 +32,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late PageController _pageController;
   int _currentPage = 0;
   Timer? _timer;
+  final ApiService _api = ApiService();
+  double? _referralBalance;
+  bool _isLoadingReferral = false;
 
   List<Map<String, dynamic>> _getBannerData(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
@@ -60,6 +65,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _startAutoScroll();
+    _fetchReferralBalance();
+  }
+
+  Future<void> _fetchReferralBalance() async {
+    setState(() => _isLoadingReferral = true);
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final storeId = auth.storeInfo['storeId'] ?? '';
+      if (storeId.isNotEmpty && storeId != 'DEMO-STORE-ID') {
+        final actResult = await _api.activateSeller(storeId);
+        final slug = actResult['slug'];
+        if (slug != null && slug.isNotEmpty) {
+          final refResult = await _api.getSellerReferrals(slug);
+          if (mounted) {
+            setState(() {
+              _referralBalance = (refResult['balance'] ?? 0).toDouble();
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore error gracefully
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingReferral = false);
+      }
+    }
   }
 
   void _startAutoScroll() {
@@ -173,6 +205,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               }).toList(),
             ),
+
+            // 💰 Referral Summary
+            if (_isLoadingReferral || _referralBalance != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.monetization_on, color: Colors.green, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Saldo Komisi Referral', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                            const SizedBox(height: 4),
+                            _isLoadingReferral
+                                ? const SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Text(
+                                    NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
+                                        .format(_referralBalance ?? 0),
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                                  ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen())),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          backgroundColor: Colors.green.shade50,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Tarik', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
