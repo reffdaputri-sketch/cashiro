@@ -1,0 +1,47 @@
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import StorePage from './StorePage';
+
+interface SellerData {
+  seller: {
+    slug: string;
+    store_name: string;
+    owner_name: string;
+    phone: string;
+    address: string;
+  };
+  products: {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+    stock: number;
+    image_url: string;
+  }[];
+}
+
+async function getSellerData(slug: string): Promise<SellerData | null> {
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const res = await fetch(`${appUrl}/api/sellers/${slug}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const data = await getSellerData(params.slug);
+  if (!data) return { title: 'Toko Tidak Ditemukan' };
+  return {
+    title: `${data.seller.store_name} - Belanja Online`,
+    description: `Belanja produk berkualitas dari ${data.seller.store_name}. ${data.products.length} produk tersedia.`,
+  };
+}
+
+export default async function Page({ params }: { params: { slug: string } }) {
+  const data = await getSellerData(params.slug);
+  if (!data) notFound();
+  return <StorePage data={data} slug={params.slug} />;
+}

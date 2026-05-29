@@ -140,18 +140,23 @@ class _CartScreenState extends State<CartScreen> {
                                           style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w500),
                                         ),
                                       ] else ...[
-                                        Row(
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               currencyFormatter.format(item.price),
                                               style: TextStyle(color: Colors.grey[600], fontSize: 12),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Icon(Icons.local_offer_outlined, size: 11, color: Colors.blue[600]),
-                                            const SizedBox(width: 2),
-                                            Text(
-                                              '+ Diskon',
-                                              style: TextStyle(color: Colors.blue[600], fontSize: 10, fontWeight: FontWeight.bold),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(Icons.local_offer_outlined, size: 11, color: Colors.blue[600]),
+                                                const SizedBox(width: 2),
+                                                Text(
+                                                  '+ Diskon',
+                                                  style: TextStyle(color: Colors.blue[600], fontSize: 10, fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -248,7 +253,7 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
                 Row(
                   children: [
                     Expanded(
@@ -279,6 +284,7 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
