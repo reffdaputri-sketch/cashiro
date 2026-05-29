@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS seller_products (
   UNIQUE(seller_id, local_product_id) -- Supaya tidak ada duplikat saat sync
 );
 
+-- Pastikan kolom weight ada (jika tabel sudah terlanjur dibuat sebelumnya)
+ALTER TABLE seller_products ADD COLUMN IF NOT EXISTS weight INT DEFAULT 0;
+
 -- 3. Tabel seller_orders (pesanan dari landing page)
 CREATE TABLE IF NOT EXISTS seller_orders (
   id             BIGSERIAL PRIMARY KEY,
@@ -53,6 +56,10 @@ CREATE TABLE IF NOT EXISTS seller_orders (
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Pastikan kolom baru ada
+ALTER TABLE seller_orders ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC(15, 2) DEFAULT 0;
+ALTER TABLE seller_orders ADD COLUMN IF NOT EXISTS courier_name TEXT DEFAULT '';
+
 -- 4. Index untuk performa query
 CREATE INDEX IF NOT EXISTS idx_sellers_slug ON sellers(slug);
 CREATE INDEX IF NOT EXISTS idx_seller_products_seller_id ON seller_products(seller_id);
@@ -66,18 +73,23 @@ ALTER TABLE sellers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seller_orders ENABLE ROW LEVEL SECURITY;
 
 -- Policy: siapapun bisa baca seller & produk aktif (untuk landing page publik)
+DROP POLICY IF EXISTS "Public read active sellers" ON sellers;
 CREATE POLICY "Public read active sellers" ON sellers
   FOR SELECT USING (is_active = TRUE);
 
+DROP POLICY IF EXISTS "Public read active products" ON seller_products;
 CREATE POLICY "Public read active products" ON seller_products
   FOR SELECT USING (is_active = TRUE);
 
 -- Service role bisa semua (untuk backend API)
+DROP POLICY IF EXISTS "Service role full access sellers" ON sellers;
 CREATE POLICY "Service role full access sellers" ON sellers
   FOR ALL USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access seller_products" ON seller_products;
 CREATE POLICY "Service role full access seller_products" ON seller_products
   FOR ALL USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS "Service role full access seller_orders" ON seller_orders;
 CREATE POLICY "Service role full access seller_orders" ON seller_orders
   FOR ALL USING (auth.role() = 'service_role');
