@@ -235,6 +235,9 @@ class ApiService {
     required String address,
     required String? pin,
     int? cityId,
+    String? bankName,
+    String? bankAccount,
+    String? bankAccountName,
   }) async {
     try {
       final response = await http.post(
@@ -249,6 +252,9 @@ class ApiService {
           'address': address,
           'pin': pin,
           'city_id': cityId,
+          'bank_name': bankName,
+          'bank_account': bankAccount,
+          'bank_account_name': bankAccountName,
         }),
       );
 
@@ -419,8 +425,42 @@ class ApiService {
     }
   }
 
-  /// Ambil data referral dan reward affiliate
-  Future<Map<String, dynamic>> getSellerReferrals(String slug) async {
+  /// Withdraw seller balance (full amount or specified)
+  Future<void> withdrawSeller(String slug, double amount) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/sellers/$slug/withdraw'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'amount': amount}),
+      );
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response.body));
+      }
+    } catch (e) {
+      debugPrint('withdrawSeller Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Withdraw referral commission (minimum 50000)
+  Future<void> withdrawCommission(String slug, double amount) async {
+    if (amount < 50000) {
+      throw Exception('Minimum withdrawal is Rp 50.000');
+    }
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/sellers/$slug/withdraw-commission'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'amount': amount}),
+      );
+      if (response.statusCode != 200) {
+        throw Exception(_parseError(response.body));
+      }
+    } catch (e) {
+      debugPrint('withdrawCommission Error: $e');
+      rethrow;
+    }
+  }
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/sellers/$slug/referrals'));
       if (response.statusCode == 200) {

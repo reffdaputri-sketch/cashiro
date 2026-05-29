@@ -12,7 +12,7 @@ import 'package:mobile/screens/expense_screen.dart';
 
 
 import 'package:mobile/screens/stock_report_screen.dart';
-import 'package:mobile/screens/printer_settings_screen.dart';
+import 'package:mobile/screens/withdraw_commission_screen.dart';
 import 'package:mobile/screens/master_data_screen.dart';
 import 'dart:async';
 import 'package:mobile/services/sync_service.dart';
@@ -206,60 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
 
             // 💰 Referral Summary
-            if (_isLoadingReferral || _referralBalance != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.monetization_on, color: Colors.green, size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Saldo Komisi Referral', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                            const SizedBox(height: 4),
-                            _isLoadingReferral
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : Text(
-                                    NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0)
-                                        .format(_referralBalance ?? 0),
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                                  ),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen())),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          backgroundColor: Colors.green.shade50,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Tarik', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            
 
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
@@ -356,11 +303,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     _buildGridItem(
                       context,
-                      icon: Icons.settings_outlined,
-                      color: Colors.orange,
-                      title: 'Pengaturan',
-                      onTap: () => _showSettingsBottomSheet(context),
+                      icon: Icons.attach_money_outlined,
+                      color: Colors.lightGreen,
+                      title: 'Penarikan Komisi',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawCommissionScreen())),
                     ),
+
                 ],
               ),
             ),

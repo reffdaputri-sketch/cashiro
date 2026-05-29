@@ -34,7 +34,10 @@ export async function POST(req: Request) {
         owner_name: store.owner_name || 'Pemilik',
         phone: store.phone || '',
         address: store.address || '',
-        pin: store.pin || '123456'
+        pin: store.pin || '123456',
+        bank_name: store.bank_name || '',
+        bank_account: store.bank_account || '',
+        bank_account_name: store.bank_account_name || ''
       }
     });
   } catch (error: any) {

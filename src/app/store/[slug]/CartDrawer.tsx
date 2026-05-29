@@ -20,10 +20,9 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'manual' | 'qris'>('manual');
+  const [paymentMethod, setPaymentMethod] = useState<'manual' | 'transfer'>('manual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [qrisUrl, setQrisUrl] = useState('');
   const [orderId, setOrderId] = useState<number | null>(null);
   const [waLink, setWaLink] = useState('');
 
@@ -188,16 +187,12 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
       setOrderId(data.order_id);
       clearCart();
 
-      if (paymentMethod === 'qris' && data.payment_url) {
-        setQrisUrl(data.payment_url);
-        setStep('qris');
-      } else {
-        if (data.seller_phone) {
-          const formattedPhone = data.seller_phone.startsWith('0') 
-            ? '62' + data.seller_phone.substring(1) 
-            : data.seller_phone.replace(/[^0-9]/g, '');
-          
-          const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
+      if (data.seller_phone) {
+        const formattedPhone = data.seller_phone.startsWith('0') 
+          ? '62' + data.seller_phone.substring(1) 
+          : data.seller_phone.replace(/[^0-9]/g, '');
+        
+        const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
 Nama: ${name || 'Anonim'}
 No. HP: ${phone || '-'}
 Alamat: ${fullAddress || '-'}
@@ -208,13 +203,18 @@ ${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
 Catatan: ${notes || '-'}
 Ongkos Kirim: ${shippingCost > 0 ? `${formatRupiah(shippingCost)} (${courierName})` : '-'}
 *Grand Total: ${formatRupiah(total + shippingCost)}*
+Metode Pembayaran: ${paymentMethod === 'transfer' ? 'Transfer Bank' : 'Manual / COD'}
 
-Tolong segera diproses ya, terima kasih!`;
-          
-          setWaLink(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(waMessage)}`);
-        }
-        setStep('success');
+${paymentMethod === 'transfer' && data.seller_bank_name ? `*Rekening Tujuan Transfer:*
+Bank: ${data.seller_bank_name}
+No. Rekening: ${data.seller_bank_account}
+Atas Nama: ${data.seller_bank_account_name}
+
+Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'}`;
+        
+        setWaLink(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(waMessage)}`);
       }
+      setStep('success');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -228,7 +228,7 @@ Tolong segera diproses ya, terima kasih!`;
         {/* Header */}
         <div className="drawer-header">
           <span className="drawer-title">
-            {step === 'cart' ? `🛒 Keranjang (${count})` : step === 'checkout' ? '📋 Checkout' : step === 'qris' ? '📱 Pembayaran QRIS' : '✅ Pesanan Berhasil'}
+            {step === 'cart' ? `🛒 Keranjang (${count})` : step === 'checkout' ? '📋 Checkout' : '✅ Pesanan Berhasil'}
           </span>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
@@ -418,10 +418,10 @@ Tolong segera diproses ya, terima kasih!`;
                 💵 Bayar Manual / COD
               </button>
               <button
-                className={`payment-option ${paymentMethod === 'qris' ? 'active' : ''}`}
-                onClick={() => setPaymentMethod('qris')}
+                className={`payment-option ${paymentMethod === 'transfer' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('transfer')}
               >
-                📱 QRIS Otomatis
+                🏦 Transfer Bank
               </button>
             </div>
 
@@ -449,26 +449,13 @@ Tolong segera diproses ya, terima kasih!`;
             <div className="btn-row">
               <button className="secondary-btn" onClick={() => setStep('cart')}>← Kembali</button>
               <button className="primary-btn" onClick={handleOrder} disabled={loading || (totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedDistrictId !== '')}>
-                {loading ? 'Memproses...' : paymentMethod === 'qris' ? 'Buat QRIS 📱' : 'Pesan Sekarang ✓'}
+                {loading ? 'Memproses...' : 'Pesan Sekarang ✓'}
               </button>
             </div>
           </div>
         )}
 
-        {/* QRIS */}
-        {step === 'qris' && (
-          <div className="drawer-body text-center">
-            <div className="qris-icon">📱</div>
-            <h3>Scan QRIS untuk Bayar</h3>
-            <p className="qris-desc">Scan QR Code di bawah ini menggunakan aplikasi dompet digital</p>
-            <a href={qrisUrl} target="_blank" rel="noopener noreferrer" className="qris-btn">
-              🔗 Buka Halaman Pembayaran
-            </a>
-            <p className="order-id-text">ID Pesanan: #{orderId}</p>
-            <p className="qris-note">Setelah pembayaran berhasil, pesanan akan diproses otomatis oleh penjual.</p>
-            <button className="secondary-btn" onClick={onClose}>Tutup</button>
-          </div>
-        )}
+
 
         {/* SUCCESS */}
         {step === 'success' && (

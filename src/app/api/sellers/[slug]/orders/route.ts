@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
     const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id, balance, store_id, stores(store_name, phone)')
+      .select('id, balance, store_id, stores(store_name, phone, bank_name, bank_account, bank_account_name)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
@@ -75,40 +75,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     let merchantOrderId = '';
 
     if (payment_method === 'qris') {
-      const merchantCode = process.env.DUITKU_MERCHANT_CODE || '';
-      const apiKey = process.env.DUITKU_API_KEY || '';
-      const inquiryUrl = process.env.DUITKU_INQUIRY_URL || '';
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cashiro.vercel.app';
-
-      merchantOrderId = `STORE-${Date.now()}`;
-      const paymentAmount = Math.round(totalAmount);
-      const signatureSource = merchantCode + merchantOrderId + paymentAmount + apiKey;
-      const signature = crypto.createHash('md5').update(signatureSource).digest('hex');
-
-      const duitkuPayload = {
-        merchantCode,
-        paymentAmount,
-        merchantOrderId,
-        productDetails: `Order Toko ${(seller as any).stores?.store_name || slug}`,
-        email: customer_phone ? `${customer_phone}@order.cashiro.id` : 'customer@cashiro.id',
-        paymentMethod: 'SP',
-        signature,
-        callbackUrl: `${appUrl}/api/sellers/${slug}/orders/callback`,
-        returnUrl: `${appUrl}/store/${slug}/order-success`,
-      };
-
-      const duitkuRes = await fetch(inquiryUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(duitkuPayload),
-      });
-
-      const duitkuData = await duitkuRes.json();
-      if (duitkuData.statusCode === '00') {
-        paymentUrl = duitkuData.paymentUrl;
-      } else {
-        return NextResponse.json({ error: `Gagal membuat QRIS: ${duitkuData.statusMessage}` }, { status: 400 });
-      }
+      return NextResponse.json({ error: 'Metode pembayaran QRIS sudah dinonaktifkan' }, { status: 400 });
     }
 
     const { data: order, error: orderErr } = await supabase
@@ -140,8 +107,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       order_id: order.id,
       total_amount: order.total_amount,
       status: order.status,
-      payment_url: order.payment_url || null,
       seller_phone: (seller as any).stores?.phone || '',
+      seller_bank_name: (seller as any).stores?.bank_name || '',
+      seller_bank_account: (seller as any).stores?.bank_account || '',
+      seller_bank_account_name: (seller as any).stores?.bank_account_name || '',
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

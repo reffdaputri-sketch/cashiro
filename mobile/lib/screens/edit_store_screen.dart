@@ -20,6 +20,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   late TextEditingController _ownerNameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
+  late TextEditingController _bankNameController;
+  late TextEditingController _bankAccountController;
+  late TextEditingController _bankAccountNameController;
   File? _imageFile;
   String? _currentImagePath;
   
@@ -38,6 +41,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _ownerNameController = TextEditingController(text: info['ownerName'] ?? '');
     _phoneController = TextEditingController(text: info['phone'] ?? '');
     _addressController = TextEditingController(text: info['address'] ?? '');
+    _bankNameController = TextEditingController(text: info['bankName'] ?? '');
+    _bankAccountController = TextEditingController(text: info['bankAccount'] ?? '');
+    _bankAccountNameController = TextEditingController(text: info['bankAccountName'] ?? '');
     _currentImagePath = info['imagePath'];
     
     final cityIdStr = info['cityId'];
@@ -89,6 +95,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _ownerNameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _bankNameController.dispose();
+    _bankAccountController.dispose();
+    _bankAccountNameController.dispose();
     super.dispose();
   }
 
@@ -113,6 +122,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         _addressController.text,
         _imageFile?.path ?? _currentImagePath,
         cityId: _selectedCityId != null ? int.tryParse(_selectedCityId!) : null,
+        bankName: _bankNameController.text,
+        bankAccount: _bankAccountController.text,
+        bankAccountName: _bankAccountNameController.text,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -344,6 +356,22 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                       ? Text('Kota ID: $_selectedCityId (Pilih ulang provinsi)') 
                       : null,
                 ),
+              const SizedBox(height: 24),
+              const Text('Informasi Rekening Bank (Untuk Pembayaran Online)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _bankNameController,
+                decoration: const InputDecoration(labelText: 'Nama Bank (contoh: BCA, Mandiri)'),
+              ),
+              TextFormField(
+                controller: _bankAccountController,
+                decoration: const InputDecoration(labelText: 'Nomor Rekening'),
+                keyboardType: TextInputType.number,
+              ),
+              TextFormField(
+                controller: _bankAccountNameController,
+                decoration: const InputDecoration(labelText: 'Atas Nama (A.N)'),
+              ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submit,

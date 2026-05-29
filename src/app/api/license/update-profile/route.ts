@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { store_id, license_key, store_name, owner_name, phone, address, pin, city_id } = await req.json();
+    const { store_id, license_key, store_name, owner_name, phone, address, pin, city_id, bank_name, bank_account, bank_account_name } = await req.json();
 
     if (!store_id || !license_key) {
       return NextResponse.json({ error: 'Store ID dan License Key wajib diisi' }, { status: 400 });
@@ -34,6 +34,9 @@ export async function POST(req: Request) {
     if (address !== undefined) updateData.address = address;
     if (pin !== undefined && pin !== null && pin !== '') updateData.pin = pin;
     if (city_id !== undefined) updateData.city_id = city_id;
+    if (bank_name !== undefined) updateData.bank_name = bank_name;
+    if (bank_account !== undefined) updateData.bank_account = bank_account;
+    if (bank_account_name !== undefined) updateData.bank_account_name = bank_account_name;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: true, message: 'Tidak ada perubahan yang dikirim' });
