@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       merchantOrderId,
       productDetails: `Lisensi Aktivasi Cashiro - ${store_name}`,
       email,
-      paymentMethod: payment_method || 'VC', // Duitku V2 requires paymentMethod (e.g. VC = Credit Card, SP = ShopeePay, NQ = QRIS)
+      paymentMethod: payment_method || 'SP', // Default to ShopeePay QRIS ('SP')
       signature,
       callbackUrl: `${appUrl}/api/license/callback`,
       returnUrl: `${appUrl}/payment-success`,
