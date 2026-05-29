@@ -31,8 +31,9 @@ async function getSellerData(slug: string): Promise<SellerData | null> {
   }
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const data = await getSellerData(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await getSellerData(slug);
   if (!data) return { title: 'Toko Tidak Ditemukan' };
   return {
     title: `${data.seller.store_name} - Belanja Online`,
@@ -40,8 +41,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function Page({ params }: { params: { slug: string } }) {
-  const data = await getSellerData(params.slug);
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const data = await getSellerData(slug);
   if (!data) notFound();
-  return <StorePage data={data} slug={params.slug} />;
+  return <StorePage data={data} slug={slug} />;
 }

@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // PATCH /api/sellers/[slug]/balance - Kredit/debit saldo seller (internal)
-export async function PATCH(req: Request, { params }: { params: { slug: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
     const { amount, secret } = await req.json();
 
-    // Validasi sederhana dengan secret key internal
     if (secret !== process.env.INTERNAL_API_SECRET) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
     }
@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: { slug: string }
     const { data: seller } = await supabase
       .from('sellers')
       .select('id, balance')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .single();
 
     if (!seller) return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });
@@ -33,12 +33,14 @@ export async function PATCH(req: Request, { params }: { params: { slug: string }
 }
 
 // GET /api/sellers/[slug]/balance - Cek saldo seller
-export async function GET(req: Request, { params }: { params: { slug: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
+
     const { data: seller } = await supabase
       .from('sellers')
       .select('balance')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .single();
 
     if (!seller) return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });

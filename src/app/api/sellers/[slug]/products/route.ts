@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // GET /api/sellers/[slug]/products - List produk seller
-export async function GET(req: Request, { params }: { params: { slug: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
+
     const { data: seller } = await supabase
-      .from('sellers').select('id').eq('slug', params.slug).single();
+      .from('sellers').select('id').eq('slug', slug).single();
     if (!seller) return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });
 
     const { data: products, error } = await supabase
@@ -22,19 +24,19 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
 }
 
 // POST /api/sellers/[slug]/products - Tambah produk baru
-export async function POST(req: Request, { params }: { params: { slug: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
     const { store_id, name, description, price, stock, image_url } = await req.json();
 
     if (!store_id || !name || !price) {
       return NextResponse.json({ error: 'name, price wajib diisi' }, { status: 400 });
     }
 
-    // Verifikasi seller milik store ini
     const { data: seller } = await supabase
       .from('sellers')
       .select('id, store_id')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('store_id', store_id)
       .single();
 
@@ -61,15 +63,16 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   }
 }
 
-// PUT /api/sellers/[slug]/products - Update produk (edit/nonaktifkan)
-export async function PUT(req: Request, { params }: { params: { slug: string } }) {
+// PUT /api/sellers/[slug]/products - Update produk
+export async function PUT(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    const { slug } = await params;
     const { store_id, product_id, name, description, price, stock, image_url, is_active } = await req.json();
 
     const { data: seller } = await supabase
       .from('sellers')
       .select('id')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .eq('store_id', store_id)
       .single();
 

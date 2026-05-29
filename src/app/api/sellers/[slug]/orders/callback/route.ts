@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import crypto from 'crypto';
 
 // POST /api/sellers/[slug]/orders/callback - Callback Duitku setelah pembayaran QRIS
-export async function POST(req: Request, { params }: { params: { slug: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
+    await params; // slug tidak digunakan di callback, tapi perlu di-await untuk Next.js 15+
+
     const body = await req.formData().catch(() => null);
     let merchantOrderId: string;
     let resultCode: string;
@@ -22,7 +23,6 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       return NextResponse.json({ message: 'Pembayaran gagal atau pending' });
     }
 
-    // Update order menjadi paid
     const { data: order, error: orderErr } = await supabase
       .from('seller_orders')
       .update({ status: 'paid', updated_at: new Date().toISOString() })
@@ -34,7 +34,6 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       return NextResponse.json({ error: 'Order tidak ditemukan' }, { status: 404 });
     }
 
-    // Tambahkan saldo seller
     const { data: seller } = await supabase
       .from('sellers')
       .select('balance')

@@ -1,26 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// GET /api/sellers/[slug] - Info seller + katalog produk (publik)
-export async function GET(req: Request, { params }: { params: { slug: string } }) {
+// GET /api/sellers/[slug] - Ambil data publik seller (untuk landing page)
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
-    const { slug } = params;
+    const { slug } = await params;
 
-    const { data: seller, error } = await supabase
+    const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select(`
-        id, slug, balance, is_active, created_at,
-        stores(store_name, owner_name, phone, address)
-      `)
+      .select('id, slug, balance, stores(store_name, owner_name, phone, address)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
 
-    if (error || !seller) {
+    if (sellerErr || !seller) {
       return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });
     }
 
-    // Ambil produk aktif
     const { data: products } = await supabase
       .from('seller_products')
       .select('id, name, description, price, stock, image_url')
@@ -28,13 +24,15 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
+    const storeData = (seller as any).stores || {};
+
     return NextResponse.json({
       seller: {
         slug: seller.slug,
-        store_name: (seller as any).stores?.store_name,
-        owner_name: (seller as any).stores?.owner_name,
-        phone: (seller as any).stores?.phone,
-        address: (seller as any).stores?.address,
+        store_name: storeData.store_name || slug,
+        owner_name: storeData.owner_name || '',
+        phone: storeData.phone || '',
+        address: storeData.address || '',
       },
       products: products || [],
     });
