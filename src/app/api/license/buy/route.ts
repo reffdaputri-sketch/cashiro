@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       signature,
       callbackUrl: `${appUrl}/api/license/callback`,
       returnUrl: `${appUrl}/payment-success`,
+      additionalParam: email, // Pass email in additionalParam so callback can retrieve it
     };
 
     const response = await fetch(inquiryUrl, {

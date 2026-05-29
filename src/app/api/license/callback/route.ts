@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const { merchantCode, amount, merchantOrderId, signature, resultCode, email } = body;
+    const { merchantCode, amount, merchantOrderId, signature, resultCode, email, additionalParam } = body;
     const apiKey = process.env.DUITKU_API_KEY || '';
 
     console.log('--- DUKTUI CALLBACK DEBUG ---');
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         licenseKey = `CSH-${rawKey.slice(0, 4)}-${rawKey.slice(4)}`;
       }
       
-      const customerEmail = email || 'customer@example.com';
+      const customerEmail = email || additionalParam || 'customer@example.com';
 
       // Insert license to Supabase
       const { error } = await supabase
