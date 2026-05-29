@@ -292,6 +292,18 @@ class ApiService {
     }
   }
 
+  /// Ambil semua produk seller (termasuk yang nonaktif) untuk dashboard
+  Future<Map<String, dynamic>> getSellerProducts(String slug) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/api/sellers/$slug/products'));
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('getSellerProducts Error: $e');
+      rethrow;
+    }
+  }
+
   /// Tambah produk ke landing page seller
   Future<Map<String, dynamic>> addSellerProduct({
     required String slug,

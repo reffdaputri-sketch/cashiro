@@ -64,13 +64,20 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
 
   Future<void> _refreshData() async {
     if (_slug == null) return;
-    final info = await _api.getSellerInfo(_slug!);
-    final balance = await _api.getSellerBalance(_slug!);
-    final orders = await _api.getSellerOrders(_slug!);
+    
+    // Gunakan Future.wait agar request berjalan paralel (jauh lebih cepat)
+    final results = await Future.wait([
+      _api.getSellerProducts(_slug!), // Mengambil semua produk termasuk yg nonaktif
+      _api.getSellerBalance(_slug!),
+      _api.getSellerOrders(_slug!),
+    ]);
+    
+    if (!mounted) return; // Mencegah error setState setelah layar ditutup
+
     setState(() {
-      _products = info['products'] ?? [];
-      _balance = balance;
-      _orders = orders;
+      _products = (results[0] as Map<String, dynamic>)['products'] ?? [];
+      _balance = results[1] as double;
+      _orders = results[2] as List<dynamic>;
     });
   }
 
