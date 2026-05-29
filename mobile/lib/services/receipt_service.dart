@@ -68,11 +68,25 @@ class ReceiptService {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
-                  return pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  final double itemDiscount = (item['discount'] as num?)?.toDouble() ?? 0.0;
+                  return pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(child: pw.Text('${item['name']} x${item['quantity']}')),
-                      pw.Text(currencyFormatter.format(item['total'])),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Expanded(child: pw.Text('${item['name']} x${item['quantity']}')),
+                          pw.Text(currencyFormatter.format(item['total'])),
+                        ],
+                      ),
+                      if (itemDiscount > 0.01)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 10, bottom: 2),
+                          child: pw.Text(
+                            'Diskon per item: -${currencyFormatter.format(itemDiscount)}',
+                            style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                          ),
+                        ),
                     ],
                   );
                 },
