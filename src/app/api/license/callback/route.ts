@@ -28,8 +28,8 @@ export async function POST(req: Request) {
     const signatureSource = (merchantCode || '') + (amount || '') + (merchantOrderId || '') + apiKey;
     const localSignature = crypto.createHash('md5').update(signatureSource).digest('hex');
 
-    const isMock = signature === 'VERIFIED_SIGNATURE' || merchantCode === 'MOCK_MERCHANT';
-    if (!isMock && signature !== localSignature) {
+    const isMock = false;
+    if (signature !== localSignature) {
       return new Response('Signature verification failed', { status: 401 });
     }
 
