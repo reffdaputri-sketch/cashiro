@@ -61,11 +61,24 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
       setState(() {
         _provinces = data;
       });
-      // If we have a selectedCityId from initial data, we might need to fetch cities for its province
-      // But we don't know the province ID of the city unless we search through all cities or assume the user will just see the city ID.
-      // To keep it simple, we'll just show the provinces. If they want to edit city, they have to re-select province.
+      
+      if (_selectedCityId != null && _selectedCityId!.isNotEmpty) {
+        final allCities = await ApiService().getRajaOngkirLocations(type: 'city');
+        final currentCity = allCities.cast<Map<String, dynamic>>().firstWhere(
+          (c) => c['city_id'].toString() == _selectedCityId, 
+          orElse: () => <String, dynamic>{}
+        );
+        
+        if (currentCity.isNotEmpty) {
+          final provId = currentCity['province_id'].toString();
+          setState(() {
+            _selectedProvinceId = provId;
+            _cities = allCities.where((c) => c['province_id'].toString() == provId).toList();
+          });
+        }
+      }
     } catch (e) {
-      debugPrint('Failed to load provinces: $e');
+      debugPrint('Failed to load provinces/cities: $e');
     } finally {
       setState(() => _isLoadingLocation = false);
     }
