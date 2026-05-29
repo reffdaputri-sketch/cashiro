@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS withdrawal_requests (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id      UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-  seller_id     UUID REFERENCES sellers(id) ON DELETE SET NULL,
+  seller_id     BIGINT REFERENCES sellers(id) ON DELETE SET NULL,
   seller_slug   TEXT,
   type          TEXT NOT NULL DEFAULT 'referral' CHECK (type IN ('referral', 'seller')),
   amount        NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
