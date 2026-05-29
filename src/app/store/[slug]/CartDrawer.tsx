@@ -43,6 +43,8 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
 
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.qty, 0);
 
+  console.log('CartDrawer values:', { storeCityId, totalWeight, selectedDistrictId, step });
+
   useEffect(() => {
     if (step === 'checkout') {
       fetchProvinces();
@@ -365,8 +367,12 @@ Tolong segera diproses ya, terima kasih!`;
                   >
                     <option value="">-- Pilih Kurir --</option>
                     <option value="jne">JNE</option>
+                    <option value="jnt">J&T Express</option>
+                    <option value="sicepat">SiCepat</option>
+                    <option value="anteraja">AnterAja</option>
                     <option value="pos">POS Indonesia</option>
                     <option value="tiki">TIKI</option>
+                    <option value="wahana">Wahana</option>
                   </select>
                 </div>
 
@@ -374,23 +380,27 @@ Tolong segera diproses ya, terima kasih!`;
 
                 {couriers.length > 0 && (
                   <div className="courier-list">
-                    {couriers.map((c, idx) => (
-                      <label key={idx} className="courier-option">
-                        <input
-                          type="radio"
-                          name="shipping_service"
-                          onChange={() => {
-                            setShippingCost(c.cost[0].value);
-                            setCourierName(`${selectedCourier.toUpperCase()} ${c.service}`);
-                          }}
-                        />
-                        <div className="courier-info">
-                          <span className="courier-service">{selectedCourier.toUpperCase()} - {c.service}</span>
-                          <span className="courier-etd">Estimasi: {c.cost[0].etd} hari</span>
-                        </div>
-                        <span className="courier-price">{formatRupiah(c.cost[0].value)}</span>
-                      </label>
-                    ))}
+                    {couriers.map((c, idx) => {
+                      const isSelected = courierName === `${selectedCourier.toUpperCase()} ${c.service}`;
+                      return (
+                        <label key={idx} className={`courier-option ${isSelected ? 'active' : ''}`}>
+                          <input
+                            type="radio"
+                            name="shipping_service"
+                            checked={isSelected}
+                            onChange={() => {
+                              setShippingCost(c.cost[0].value);
+                              setCourierName(`${selectedCourier.toUpperCase()} ${c.service}`);
+                            }}
+                          />
+                          <div className="courier-info">
+                            <span className="courier-service">{selectedCourier.toUpperCase()} - {c.service}</span>
+                            <span className="courier-etd">Estimasi: {c.cost[0].etd} hari</span>
+                          </div>
+                          <span className="courier-price">{formatRupiah(c.cost[0].value)}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -524,6 +534,7 @@ Tolong segera diproses ya, terima kasih!`;
           .courier-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
           .courier-option { display: flex; align-items: center; gap: 12px; background: white; padding: 12px; border-radius: 10px; border: 1px solid #e0e0f0; cursor: pointer; transition: all 0.2s; }
           .courier-option:hover { border-color: #006d77; }
+          .courier-option.active { border-color: #006d77; background: #e8f7f8; }
           .courier-info { flex: 1; display: flex; flex-direction: column; }
           .courier-service { font-weight: 600; font-size: 14px; color: #1a1a2e; }
           .courier-etd { font-size: 12px; color: #666; }
