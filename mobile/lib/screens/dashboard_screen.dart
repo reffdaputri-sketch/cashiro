@@ -9,7 +9,7 @@ import 'package:mobile/screens/referral_management_screen.dart';
 import 'package:mobile/screens/history_screen.dart';
 import 'package:mobile/screens/cash_flow_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
-
+import 'package:mobile/screens/printer_settings_screen.dart';
 
 import 'package:mobile/screens/stock_report_screen.dart';
 import 'package:mobile/screens/withdraw_commission_screen.dart';
