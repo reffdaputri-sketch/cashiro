@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const { merchantCode, amount, merchantOrderId, signature, resultCc, email } = body;
+    const { merchantCode, amount, merchantOrderId, signature, resultCode, email } = body;
     const apiKey = process.env.DUITKU_API_KEY || '';
 
     // Verify signature: md5(merchantCode + amount + merchantOrderId + apiKey)
@@ -33,8 +33,8 @@ export async function POST(req: Request) {
       return new Response('Signature verification failed', { status: 401 });
     }
 
-    // resultCc '00' indicates success
-    if (resultCc === '00') {
+    // resultCode '00' indicates success
+    if (resultCode === '00') {
       let licenseKey: string;
       
       if (isMock) {
