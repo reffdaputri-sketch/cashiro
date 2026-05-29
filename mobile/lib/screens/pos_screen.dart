@@ -294,6 +294,60 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
+  void _showAddManualItemDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tambah Barang Dadakan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Nama Barang', prefixIcon: Icon(Icons.shopping_bag_outlined)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Harga (Rp)', prefixIcon: Icon(Icons.payments_outlined)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              final price = double.tryParse(priceController.text) ?? 0.0;
+              if (name.isNotEmpty && price > 0) {
+                final dummyProduct = Product(
+                  id: -(DateTime.now().millisecondsSinceEpoch % 100000), 
+                  name: name,
+                  price: price,
+                  stock: 999, 
+                  category: 'Manual',
+                  createdAt: DateTime.now(),
+                );
+                Provider.of<CartProvider>(context, listen: false).addToCart(dummyProduct);
+                Navigator.pop(ctx);
+                _showSnackBar('$name ditambahkan ke keranjang');
+              } else {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Nama dan Harga harus diisi dengan benar!'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Tambahkan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormatter =
@@ -334,6 +388,11 @@ class _POSScreenState extends State<POSScreen> {
         ),
         actions: shiftProvider.isShiftOpen
             ? [
+                IconButton(
+                  icon: const Icon(Icons.add_box, color: Colors.white),
+                  tooltip: 'Barang Manual',
+                  onPressed: () => _showAddManualItemDialog(context),
+                ),
                 IconButton(
                   icon: const Icon(Icons.lock_open, color: Colors.white),
                   tooltip: 'Tutup Shift',

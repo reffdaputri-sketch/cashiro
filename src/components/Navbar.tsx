@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from './Button';
-import { Menu, X, ShoppingBag } from 'lucide-react';
+import { Menu, X, ShoppingBag, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Navbar = () => {
@@ -63,7 +63,14 @@ export const Navbar = () => {
                         <Link href="#">
                             <Button variant="ghost" size="sm">Masuk</Button>
                         </Link>
-                        <Button size="sm">Daftar Sekarang</Button>
+                        <Link href="/download">
+                            <Button variant="outline" size="sm" className="gap-1.5">
+                                <Download size={15} /> Download
+                            </Button>
+                        </Link>
+                        <Link href="/download">
+                            <Button size="sm">Daftar Sekarang</Button>
+                        </Link>
                     </div>
 
                     {/* Mobile Menu Button */}
@@ -100,7 +107,14 @@ export const Navbar = () => {
                             ))}
                             <div className="pt-4 flex flex-col gap-3">
                                 <Button variant="outline" className="w-full justify-center">Masuk</Button>
-                                <Button className="w-full justify-center">Daftar Gratis</Button>
+                                <Link href="/download" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button variant="outline" className="w-full justify-center gap-2">
+                                        <Download size={16} /> Download App
+                                    </Button>
+                                </Link>
+                                <Link href="/download" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button className="w-full justify-center">Daftar Gratis</Button>
+                                </Link>
                             </div>
                         </div>
                     </motion.div>

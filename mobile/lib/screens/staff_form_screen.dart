@@ -16,6 +16,15 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _pinController;
   final Map<String, bool> _permissions = {
+    'Akses Dashboard': false,
+    'Akses Toko (Profil)': false,
+    'Riwayat Transaksi': false,
+    'Arus Kas': false,
+    'Pengeluaran': false,
+    'Toko Online': false,
+    'Kelola Staf': false,
+    'Referral': false,
+    'Pengaturan Toko': false,
     'Laporan Penjualan': false,
     'Laporan Kasir': false,
     'Manajemen Produk': false,

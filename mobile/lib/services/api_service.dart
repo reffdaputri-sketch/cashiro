@@ -4,11 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 class ApiService {
-  // Untuk production: 'https://cashiro.vercel.app'
+  // Untuk production: 'https://cashiro.web.id'
   // Untuk testing di device Android (ganti IP sesuai IP PC kamu di WiFi):
   // Cek IP: jalankan `ipconfig` di terminal, lihat IPv4 Address
   // Untuk emulator: gunakan http://10.0.2.2:3000
-  static const String baseUrl = 'https://cashiro.vercel.app';
+  static const String baseUrl = 'https://cashiro.web.id';
 
   /// Sends a request to Duitku payment gateway via Next.js to buy a license
   Future<Map<String, dynamic>> buyLicense(String email, String storeName) async {

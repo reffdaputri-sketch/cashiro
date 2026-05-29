@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { Button } from './Button';
 import { motion } from 'framer-motion';
 import { ArrowRight, Download, CheckCircle } from 'lucide-react';
@@ -35,12 +36,16 @@ export const Hero = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Button size="lg" className="w-full sm:w-auto gap-2">
-                            Daftar Sekarang <ArrowRight size={20} />
-                        </Button>
-                        <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
-                            <Download size={20} /> Download App
-                        </Button>
+                        <Link href="/download">
+                            <Button size="lg" className="w-full sm:w-auto gap-2">
+                                Daftar Sekarang <ArrowRight size={20} />
+                            </Button>
+                        </Link>
+                        <Link href="/download">
+                            <Button size="lg" variant="outline" className="w-full sm:w-auto gap-2">
+                                <Download size={20} /> Download App
+                            </Button>
+                        </Link>
                     </div>
 
                     <div className="mt-8 flex items-center justify-center gap-6 text-sm text-[var(--muted-foreground)]">

@@ -600,6 +600,23 @@ class _CartScreenState extends State<CartScreen> {
                        Text('Kembalian: Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(kembalian)}',
                         style: TextStyle(color: primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          paidController.text = cart.totalAmount.toInt().toString();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.money),
+                        label: const Text('Uang Pas'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[50],
+                          foregroundColor: Colors.green[700],
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     buildNumericKeyboard(setState),
                   ],
                  ),

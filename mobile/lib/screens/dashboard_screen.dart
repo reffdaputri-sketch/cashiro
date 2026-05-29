@@ -122,6 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final bannerData = _getBannerData(context);
     final primaryColor = Theme.of(context).primaryColor;
+    final auth = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -229,70 +230,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.75, // Taller for 4 columns
                 children: [
-                  _buildGridItem(
-                    context,
-                    icon: Icons.inventory_2_outlined,
-                    color: Colors.indigo,
-                    title: 'Master Data',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen())),
-                  ),
+                  if (auth.isOwner || auth.hasPermission('Manajemen Produk'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.inventory_2_outlined,
+                      color: Colors.indigo,
+                      title: 'Master Data',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen())),
+                    ),
 
-                  _buildGridItem(
-                    context,
-                    icon: Icons.storefront_outlined,
-                    color: const Color(0xFF006d77),
-                    title: 'Toko Online',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.bar_chart_outlined,
-                    color: Colors.blue,
-                    title: 'Laba Rugi',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0))),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.trending_up,
-                    color: Colors.amber,
-                    title: 'Terlaris',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1))),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.assessment_outlined,
-                    color: Colors.teal,
-                    title: 'Stok',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.receipt_long_outlined,
-                    color: Colors.blueGrey,
-                    title: 'Riwayat',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: Colors.teal,
-                    title: 'Arus Kas',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.trending_down_outlined,
-                    color: Colors.red,
-                    title: 'Pengeluaran',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseScreen())),
-                  ),
-                  _buildGridItem(
-                    context,
-                    icon: Icons.people_alt_outlined,
-                    color: Colors.blue,
-                    title: 'Staf',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen())),
-                  ),
+                  if (auth.isOwner || auth.hasPermission('Toko Online'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.storefront_outlined,
+                      color: const Color(0xFF006d77),
+                      title: 'Toko Online',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Laporan Penjualan'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.bar_chart_outlined,
+                      color: Colors.blue,
+                      title: 'Laba Rugi',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0))),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Laporan Penjualan'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.trending_up,
+                      color: Colors.amber,
+                      title: 'Terlaris',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1))),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Manajemen Produk'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.assessment_outlined,
+                      color: Colors.teal,
+                      title: 'Stok',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Riwayat Transaksi'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.receipt_long_outlined,
+                      color: Colors.blueGrey,
+                      title: 'Riwayat',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Arus Kas'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.account_balance_wallet_outlined,
+                      color: Colors.teal,
+                      title: 'Arus Kas',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Pengeluaran'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.trending_down_outlined,
+                      color: Colors.red,
+                      title: 'Pengeluaran',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Kelola Staf'))
+                    _buildGridItem(
+                      context,
+                      icon: Icons.people_alt_outlined,
+                      color: Colors.blue,
+                      title: 'Staf',
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen())),
+                    ),
+                  if (auth.isOwner || auth.hasPermission('Referral'))
                     _buildGridItem(
                       context,
                       icon: Icons.group_outlined,
@@ -300,6 +311,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Referral',
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen())),
                     ),
+                  if (auth.isOwner || auth.hasPermission('Pengaturan Toko'))
                     _buildGridItem(
                       context,
                       icon: Icons.settings_outlined,
@@ -307,7 +319,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Pengaturan Toko',
                       onTap: () => _showSettingsBottomSheet(context),
                     ),
-
                 ],
               ),
             ),

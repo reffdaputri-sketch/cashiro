@@ -28,6 +28,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  void _deleteTransaction(int transactionId) async {
+    final db = await _db.database;
+    await db.delete('transaction_items', where: 'transaction_id = ?', whereArgs: [transactionId]);
+    try {
+      await db.delete('debt_payments', where: 'transaction_id = ?', whereArgs: [transactionId]);
+    } catch (_) {}
+    await _db.delete('transactions', transactionId);
+    _refresh();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi berhasil dihapus')));
+    }
+  }
+
+  void _confirmDelete(BuildContext bContext, int transactionId) {
+    showDialog(
+      context: bContext,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Transaksi?'),
+        content: const Text('Apakah Anda yakin ingin menghapus transaksi ini? Data tidak dapat dikembalikan dan stok tidak akan di-update otomatis.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx); // Close dialog
+              Navigator.pop(bContext); // Close bottom sheet
+              _deleteTransaction(transactionId);
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTransactionDetails(Map<String, dynamic> t) async {
     final db = await _db.database;
     final items = await db.rawQuery('''
@@ -153,6 +187,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   const SizedBox(height: 32),
                   Row(
                     children: [
+                      if (Provider.of<AuthProvider>(context, listen: false).isOwner) ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[50],
+                              foregroundColor: Colors.red,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Hapus'),
+                            onPressed: () => _confirmDelete(context, t['id']),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
@@ -225,9 +276,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Riwayat Transaksi'), actions: [
-        IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh)
-      ]),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Riwayat Transaksi', style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh)
+        ]
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _transactionsFuture,
         builder: (context, snapshot) {
@@ -235,24 +291,106 @@ class _HistoryScreenState extends State<HistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Belum ada transaksi.'));
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('Belum ada transaksi', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                ],
+              ),
+            );
           }
 
           final transactions = snapshot.data!;
+          // Group by Date
+          Map<String, List<Map<String, dynamic>>> grouped = {};
+          for (var t in transactions) {
+            final date = DateTime.parse(t['created_at']);
+            final dateStr = DateFormat('dd MMMM yyyy').format(date);
+            if (!grouped.containsKey(dateStr)) {
+              grouped[dateStr] = [];
+            }
+            grouped[dateStr]!.add(t);
+          }
+
           return ListView.builder(
-            itemCount: transactions.length,
+            padding: const EdgeInsets.all(16),
+            itemCount: grouped.keys.length,
             itemBuilder: (context, index) {
-              final t = transactions[index];
-              final date = DateTime.parse(t['created_at']);
-              return ListTile(
-                leading: const Icon(Icons.receipt_long, color: Colors.green),
-                title: Text('Transaksi #${t['id']}'),
-                subtitle: Text(DateFormat('dd MMM yyyy HH:mm').format(date)),
-                trailing: Text(
-                  currencyFormatter.format(t['total_amount']),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                onTap: () => _showTransactionDetails(t),
+              final dateStr = grouped.keys.elementAt(index);
+              final dailyTransactions = grouped[dateStr]!;
+              
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      dateStr,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54),
+                    ),
+                  ),
+                  ...dailyTransactions.map((t) {
+                    final date = DateTime.parse(t['created_at']);
+                    final timeStr = DateFormat('HH:mm').format(date);
+                    final paymentMethod = t['payment_method'] ?? 'Tunai';
+                    
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey[200]!),
+                      ),
+                      child: InkWell(
+                        onTap: () => _showTransactionDetails(t),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[50],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.receipt_long, color: Colors.green),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Transaksi #${t['id']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                                        const SizedBox(width: 4),
+                                        Text(timeStr, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                        const SizedBox(width: 12),
+                                        Icon(paymentMethod == 'Tunai' ? Icons.money : Icons.credit_card, size: 14, color: Colors.grey[600]),
+                                        const SizedBox(width: 4),
+                                        Text(paymentMethod, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                currencyFormatter.format(t['total_amount']),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
               );
             },
           );

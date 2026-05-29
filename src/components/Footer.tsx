@@ -20,6 +20,7 @@ export const Footer = () => {
                         <ul className="space-y-2 text-sm text-[var(--muted-foreground)]">
                             <li><Link href="#features" className="hover:text-[var(--primary)]">Sistem Kasir</Link></li>
                             <li><Link href="#pricing" className="hover:text-[var(--primary)]">Harga Paket</Link></li>
+                            <li><Link href="/download" className="hover:text-[var(--primary)]">Download App</Link></li>
                         </ul>
                     </div>
 
@@ -27,8 +28,8 @@ export const Footer = () => {
                     <div>
                         <h4 className="font-semibold text-[var(--foreground)] mb-4">Dukungan</h4>
                         <ul className="space-y-2 text-sm text-[var(--muted-foreground)]">
-                            <li><Link href="#" className="hover:text-[var(--primary)]">Pusat Bantuan</Link></li>
-                            <li><Link href="#" className="hover:text-[var(--primary)]">Panduan Penggunaan</Link></li>
+                            <li><Link href="/help" className="hover:text-[var(--primary)]">Pusat Bantuan</Link></li>
+                            <li><Link href="/guide" className="hover:text-[var(--primary)]">Panduan Penggunaan</Link></li>
                             <li><Link href="/privacy-policy" className="hover:text-[var(--primary)]">Kebijakan Privasi</Link></li>
                             <li><Link href="/delete-account" className="hover:text-[var(--primary)]">Hapus Akun</Link></li>
                         </ul>

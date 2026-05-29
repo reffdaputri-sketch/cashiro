@@ -1,8 +1,9 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { Button } from './Button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Download } from 'lucide-react';
 
 export const CTASection = () => {
     return (
@@ -19,12 +20,16 @@ export const CTASection = () => {
                     Gabung dengan 5.000+ UMKM lainnya yang telah beralih ke Cashiro. Kelola bisnis Anda dengan mudah hari ini!
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Button size="lg" className="bg-white text-[var(--primary)] hover:bg-gray-100 w-full sm:w-auto">
-                        Mulai Sekarang Gratis
-                    </Button>
-                    <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full sm:w-auto gap-2">
-                        Konsultasi via WhatsApp <ArrowRight size={18} />
-                    </Button>
+                    <Link href="/download">
+                        <Button size="lg" className="bg-white text-[var(--primary)] hover:bg-gray-100 w-full sm:w-auto">
+                            Mulai Sekarang Gratis
+                        </Button>
+                    </Link>
+                    <Link href="/download">
+                        <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 w-full sm:w-auto gap-2">
+                            <Download size={18} /> Download App <ArrowRight size={18} />
+                        </Button>
+                    </Link>
                 </div>
             </div>
         </section>

@@ -41,7 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Filter tabs based on role and permissions
     final List<_NavTab> activeTabs = _allTabs.where((tab) {
       if (auth.isOwner) return true;
-      if (tab.label == 'Dashboard' || tab.label == 'Toko') return false; // Owners only, non-owners filtered out here
+      if (tab.label == 'Dashboard') return auth.hasPermission('Akses Dashboard');
+      if (tab.label == 'Toko') return auth.hasPermission('Akses Toko (Profil)');
       if (tab.permission == null) return true; // Always visible (e.g. Kasir)
       return auth.hasPermission(tab.permission!);
     }).toList();

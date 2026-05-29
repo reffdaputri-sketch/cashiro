@@ -53,7 +53,7 @@ class _PurchaseLicenseScreenState extends State<PurchaseLicenseScreen> {
           MaterialPageRoute(
             builder: (context) => DuitkuWebViewScreen(
               paymentUrl: _paymentUrl!,
-              returnUrl: 'https://cashiro.vercel.app/payment-success',
+              returnUrl: 'https://cashiro.web.id/payment-success',
               onPaymentSuccess: () {
                 _checkGeneratedLicense();
               },

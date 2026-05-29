@@ -6,6 +6,10 @@ import 'package:mobile/services/excel_import_service.dart';
 import 'package:intl/intl.dart';
 
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:mobile/models/product.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -98,40 +102,77 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(currencyFormatter.format(product.price)),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductFormScreen(product: product),
-                        ),
-                      ),
+                    Text(
+                      currencyFormatter.format(product.price),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        final confirm = await showDialog(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Hapus Produk?'),
-                            content: const Text('Tindakan ini tidak dapat dibatalkan.'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Batal'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Hapus'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await provider.deleteProduct(product.id!);
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        if (value == 'barcode') {
+                          _shareBarcode(context, product);
+                        } else if (value == 'edit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProductFormScreen(product: product),
+                            ),
+                          );
+                        } else if (value == 'delete') {
+                          final confirm = await showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Hapus Produk?'),
+                              content: const Text('Tindakan ini tidak dapat dibatalkan.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Batal'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await provider.deleteProduct(product.id!);
+                          }
                         }
                       },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'barcode',
+                          child: Row(
+                            children: [
+                              Icon(Icons.qr_code_2, color: Colors.teal, size: 20),
+                              SizedBox(width: 8),
+                              Text('Bagikan Barcode'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Colors.blue, size: 20),
+                              SizedBox(width: 8),
+                              Text('Edit Produk'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Hapus Produk', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -141,6 +182,57 @@ class _ProductListScreenState extends State<ProductListScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _shareBarcode(BuildContext context, Product product) async {
+    if (product.code == null || product.code!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Produk ini belum memiliki kode barcode. Edit produk untuk membuat kode.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final code = product.code!;
+      // Use TEC-IT API for barcode generation (Code128 format)
+      final url = 'https://barcode.tec-it.com/barcode.ashx?data=$code&code=Code128&translate-esc=on';
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      if (response.statusCode == 200) {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/barcode_$code.png');
+        await file.writeAsBytes(response.bodyBytes);
+        
+        final String textMsg = 'Nama Produk: ${product.name}\nKode Barcode: $code';
+        
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: textMsg,
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal membuat barcode. Pastikan koneksi internet aktif.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading dialog
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan: $e')),
+        );
+      }
+    }
   }
 
   void _showAddProductMenu(BuildContext context) {

@@ -86,7 +86,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     return NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(value);
   }
 
-  String _storeUrl() => 'https://cashiro.vercel.app/store/$_slug';
+  String _storeUrl() => 'https://cashiro.web.id/store/$_slug';
 
   void _copyLink() {
     Clipboard.setData(ClipboardData(text: _storeUrl()));
