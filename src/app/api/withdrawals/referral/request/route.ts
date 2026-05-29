@@ -5,10 +5,10 @@ import { supabase } from '@/lib/supabase';
 // Body: { storeId: string, amount: number }
 export async function POST(req: Request) {
   try {
-    const { storeId, amount } = await req.json();
+    const { storeId, slug, amount } = await req.json();
 
-    if (!storeId || typeof amount !== 'number') {
-      return NextResponse.json({ error: 'storeId dan amount wajib diisi' }, { status: 400 });
+    if ((!storeId && !slug) || typeof amount !== 'number') {
+      return NextResponse.json({ error: 'storeId atau slug, dan amount wajib diisi' }, { status: 400 });
     }
 
     if (amount < 50000) {
@@ -18,12 +18,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Ambil seller berdasarkan store_id
-    const { data: seller, error: sellerErr } = await supabase
-      .from('sellers')
-      .select('id, slug, balance, store_id')
-      .eq('store_id', storeId)
-      .single();
+    // Ambil seller berdasarkan store_id atau slug
+    let sellerQuery = supabase.from('sellers').select('id, slug, balance, store_id');
+    if (storeId) {
+      sellerQuery = sellerQuery.eq('store_id', storeId);
+    } else {
+      sellerQuery = sellerQuery.eq('slug', slug);
+    }
+    
+    const { data: seller, error: sellerErr } = await sellerQuery.single();
 
     if (sellerErr || !seller) {
       return NextResponse.json({ error: 'Seller tidak ditemukan' }, { status: 404 });
@@ -42,7 +45,7 @@ export async function POST(req: Request) {
     const { data: existingPending } = await supabase
       .from('withdrawal_requests')
       .select('id')
-      .eq('store_id', storeId)
+      .eq('store_id', seller.store_id)
       .eq('type', 'referral')
       .eq('status', 'pending')
       .single();
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
     const { data: request, error: insertErr } = await supabase
       .from('withdrawal_requests')
       .insert({
-        store_id: storeId,
+        store_id: seller.store_id,
         seller_id: seller.id,
         seller_slug: seller.slug,
         type: 'referral',

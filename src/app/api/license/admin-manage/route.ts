@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
     const { data: stores, error: storeError } = await supabase
       .from('stores')
-      .select('*')
+      .select('*, sellers (balance, slug)')
       .order('created_at', { ascending: false });
 
     if (storeError) throw storeError;

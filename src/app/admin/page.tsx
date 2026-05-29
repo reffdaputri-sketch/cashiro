@@ -580,40 +580,55 @@ export default function AdminDashboard() {
                         <th className="p-4 pl-6">Nama Toko</th>
                         <th className="p-4">Pemilik & Kontak</th>
                         <th className="p-4">Lisensi Aktif</th>
+                        <th className="p-4 text-emerald-400">Saldo Referral</th>
                         <th className="p-4 pr-6">Bergabung</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                       {filteredStores.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="text-center p-12 text-slate-500 text-sm">
+                          <td colSpan={5} className="text-center p-12 text-slate-500 text-sm">
                             Tidak ada data toko terdaftar
                           </td>
                         </tr>
                       ) : (
-                        filteredStores.map((store, i) => (
-                          <tr key={i} className="hover:bg-slate-800/30 transition-all text-sm">
-                            <td className="p-4 pl-6">
-                              <div className="font-bold text-white flex items-center gap-1.5">
-                                <Store size={15} className="text-blue-500" />
-                                {store.store_name}
-                              </div>
-                              <div className="text-slate-500 text-[11px] mt-0.5">{store.address || 'Alamat tidak diisi'}</div>
-                            </td>
-                            <td className="p-4">
-                              <div className="text-slate-300 font-medium">{store.owner_name || '-'}</div>
-                              <div className="text-slate-400 text-xs mt-0.5">{store.phone || store.email}</div>
-                            </td>
-                            <td className="p-4 font-mono font-bold text-blue-400">{store.license_key}</td>
-                            <td className="p-4 pr-6 text-slate-400 text-xs">
-                              {new Date(store.created_at).toLocaleString('id-ID', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric'
-                              })}
-                            </td>
-                          </tr>
-                        ))
+                        filteredStores.map((store, i) => {
+                          const sellerObj = Array.isArray(store.sellers) ? store.sellers[0] : store.sellers;
+                          const referralBalance = sellerObj?.balance ? Number(sellerObj.balance) : 0;
+                          return (
+                            <tr key={i} className="hover:bg-slate-800/30 transition-all text-sm">
+                              <td className="p-4 pl-6">
+                                <div className="font-bold text-white flex items-center gap-1.5">
+                                  <Store size={15} className="text-blue-500" />
+                                  {store.store_name}
+                                </div>
+                                <div className="text-slate-500 text-[11px] mt-0.5">{store.address || 'Alamat tidak diisi'}</div>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-slate-300 font-medium">{store.owner_name || '-'}</div>
+                                <div className="text-slate-400 text-xs mt-0.5">{store.phone || store.email}</div>
+                              </td>
+                              <td className="p-4 font-mono font-bold text-blue-400">{store.license_key}</td>
+                              <td className="p-4">
+                                <span className="font-bold text-emerald-400">
+                                  Rp {referralBalance.toLocaleString('id-ID')}
+                                </span>
+                                {sellerObj?.slug && (
+                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    slug: {sellerObj.slug}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-4 pr-6 text-slate-400 text-xs">
+                                {new Date(store.created_at).toLocaleString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
