@@ -97,12 +97,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Connect Existing Device
                 SizedBox(
                   height: 50,
-                  child: TextButton.icon(
+                  child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const ConnectDeviceScreen()));
                     },
                     icon: const Icon(Icons.sync),
                     label: const Text('Hubungkan Device (Login)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: primaryColor, width: 2),
+                    ),
                   ),
                 ),
               ],
