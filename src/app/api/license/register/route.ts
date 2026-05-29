@@ -34,6 +34,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email pendaftaran tidak cocok dengan email pembelian lisensi ini' }, { status: 400 });
     }
 
+    // Check if email is already registered for another store
+    const { data: existingStore } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (existingStore) {
+      return NextResponse.json({ error: 'Email ini sudah terdaftar untuk toko lain' }, { status: 400 });
+    }
+
     // 2. Insert the store
     const { data: store, error: storeError } = await supabase
       .from('stores')

@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
 
 export async function POST(req: Request) {
   try {
     const { email, store_name, payment_method } = await req.json();
     if (!email || !store_name) {
       return NextResponse.json({ error: 'Email dan Nama Toko wajib diisi' }, { status: 400 });
+    }
+
+    // Check if email is already registered for another store
+    const { data: existingStore } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (existingStore) {
+      return NextResponse.json({ error: 'Email ini sudah terdaftar untuk toko lain' }, { status: 400 });
     }
 
     const merchantCode = process.env.DUITKU_MERCHANT_CODE || '';
