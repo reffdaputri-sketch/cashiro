@@ -30,8 +30,10 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
   // Shipping State
   const [provinces, setProvinces] = useState<any[]>([]);
   const [cities, setCities] = useState<any[]>([]);
+  const [districts, setDistricts] = useState<any[]>([]);
   const [selectedProvinceId, setSelectedProvinceId] = useState('');
   const [selectedCityId, setSelectedCityId] = useState('');
+  const [selectedDistrictId, setSelectedDistrictId] = useState('');
   const [couriers, setCouriers] = useState<any[]>([]);
   const [selectedCourier, setSelectedCourier] = useState('');
   const [shippingCost, setShippingCost] = useState(0);
@@ -42,10 +44,10 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.qty, 0);
 
   useEffect(() => {
-    if (step === 'checkout' && storeCityId) {
+    if (step === 'checkout') {
       fetchProvinces();
     }
-  }, [step, storeCityId]);
+  }, [step]);
 
   const fetchProvinces = async () => {
     setLoadingLocation(true);
@@ -73,8 +75,21 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
     }
   };
 
-  const calculateShipping = async (cityId: string, courierCode: string) => {
-    if (!storeCityId || !cityId || !courierCode || totalWeight <= 0) return;
+  const fetchDistricts = async (cityId: string) => {
+    setLoadingLocation(true);
+    try {
+      const res = await fetch(`/api/rajaongkir/location?type=district&city=${cityId}`);
+      const data = await res.json();
+      if (res.ok) setDistricts(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const calculateShipping = async (districtId: string, courierCode: string) => {
+    if (!storeCityId || !districtId || !courierCode || totalWeight <= 0) return;
     setLoadingShipping(true);
     setError('');
     try {
@@ -83,7 +98,7 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           origin: storeCityId,
-          destination: cityId,
+          destination: districtId,
           weight: totalWeight < 1000 ? 1000 : totalWeight, // minimum 1kg
           courier: courierCode,
         }),
@@ -105,13 +120,49 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
   };
 
   const handleOrder = async () => {
+    if (!name.trim()) {
+      setError('Nama Pemesan wajib diisi.');
+      return;
+    }
+    if (!phone.trim()) {
+      setError('No. WhatsApp wajib diisi.');
+      return;
+    }
+    if (!selectedProvinceId) {
+      setError('Silakan pilih Provinsi.');
+      return;
+    }
+    if (!selectedCityId) {
+      setError('Silakan pilih Kota / Kabupaten.');
+      return;
+    }
+    if (!selectedDistrictId) {
+      setError('Silakan pilih Kecamatan.');
+      return;
+    }
+    if (!address.trim()) {
+      setError('Alamat Lengkap wajib diisi.');
+      return;
+    }
+    if (storeCityId && totalWeight > 0 && shippingCost === 0) {
+      setError('Silakan pilih kurir dan layanan pengiriman.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
+      const prov = provinces.find(p => p.province_id === selectedProvinceId)?.province || '';
+      const city = cities.find(c => c.city_id === selectedCityId)?.city_name || '';
+      const cityType = cities.find(c => c.city_id === selectedCityId)?.type || '';
+      const dist = districts.find(d => d.district_id === selectedDistrictId)?.district_name || '';
+      
+      const fullAddress = `${address}, Kec. ${dist}, ${cityType} ${city}, Prov. ${prov}`;
+
       const payload = {
         customer_name: name,
         customer_phone: phone,
-        customer_address: address,
+        customer_address: fullAddress,
         notes,
         payment_method: paymentMethod,
         shipping_cost: shippingCost,
@@ -147,7 +198,7 @@ export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerPro
           const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
 Nama: ${name || 'Anonim'}
 No. HP: ${phone || '-'}
-Alamat: ${address || '-'}
+Alamat: ${fullAddress || '-'}
 
 *Pesanan:*
 ${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
@@ -225,69 +276,98 @@ Tolong segera diproses ya, terima kasih!`;
             <label className="form-label">No. WhatsApp</label>
             <input className="form-input" placeholder="08xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} type="tel" />
 
-            <label className="form-label">Alamat Pengiriman (Wajib untuk dikirim)</label>
+            <label className="form-label">Provinsi</label>
+            <select
+              className="form-input"
+              value={selectedProvinceId}
+              onChange={(e) => {
+                setSelectedProvinceId(e.target.value);
+                setSelectedCityId('');
+                setCities([]);
+                setSelectedDistrictId('');
+                setDistricts([]);
+                setSelectedCourier('');
+                setCouriers([]);
+                setShippingCost(0);
+                setCourierName('');
+                if (e.target.value) fetchCities(e.target.value);
+              }}
+              disabled={loadingLocation}
+            >
+              <option value="">-- Pilih Provinsi --</option>
+              {provinces.map((p) => (
+                <option key={p.province_id} value={p.province_id}>{p.province}</option>
+              ))}
+            </select>
+
+            <label className="form-label">Kota / Kabupaten</label>
+            <select
+              className="form-input"
+              value={selectedCityId}
+              onChange={(e) => {
+                setSelectedCityId(e.target.value);
+                setSelectedDistrictId('');
+                setDistricts([]);
+                setSelectedCourier('');
+                setCouriers([]);
+                setShippingCost(0);
+                setCourierName('');
+                if (e.target.value) fetchDistricts(e.target.value);
+              }}
+              disabled={!selectedProvinceId || loadingLocation}
+            >
+              <option value="">-- Pilih Kota/Kab --</option>
+              {cities.map((c) => (
+                <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
+              ))}
+            </select>
+
+            <label className="form-label">Kecamatan</label>
+            <select
+              className="form-input"
+              value={selectedDistrictId}
+              onChange={(e) => {
+                setSelectedDistrictId(e.target.value);
+                setSelectedCourier('');
+                setCouriers([]);
+                setShippingCost(0);
+                setCourierName('');
+              }}
+              disabled={!selectedCityId || loadingLocation}
+            >
+              <option value="">-- Pilih Kecamatan --</option>
+              {districts.map((d) => (
+                <option key={d.district_id} value={d.district_id}>{d.district_name}</option>
+              ))}
+            </select>
+
+            <label className="form-label">Alamat Lengkap (Jalan, RT/RW, No. Rumah)</label>
             <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
 
             {/* RajaOngkir Shipping Cost */}
-            {storeCityId && totalWeight > 0 && (
+            {storeCityId && totalWeight > 0 && selectedDistrictId && (
               <div className="shipping-box">
                 <h4 className="shipping-title">Pengiriman (Total Berat: {totalWeight}g)</h4>
                 
                 <div className="shipping-grid">
                   <select
                     className="form-input"
-                    value={selectedProvinceId}
+                    value={selectedCourier}
                     onChange={(e) => {
-                      setSelectedProvinceId(e.target.value);
-                      setSelectedCityId('');
-                      setCouriers([]);
-                      setShippingCost(0);
-                      if (e.target.value) fetchCities(e.target.value);
+                      setSelectedCourier(e.target.value);
+                      if (e.target.value) calculateShipping(selectedDistrictId, e.target.value);
+                      else {
+                        setCouriers([]);
+                        setShippingCost(0);
+                        setCourierName('');
+                      }
                     }}
-                    disabled={loadingLocation}
                   >
-                    <option value="">-- Pilih Provinsi --</option>
-                    {provinces.map((p) => (
-                      <option key={p.province_id} value={p.province_id}>{p.province}</option>
-                    ))}
+                    <option value="">-- Pilih Kurir --</option>
+                    <option value="jne">JNE</option>
+                    <option value="pos">POS Indonesia</option>
+                    <option value="tiki">TIKI</option>
                   </select>
-
-                  <select
-                    className="form-input"
-                    value={selectedCityId}
-                    onChange={(e) => {
-                      setSelectedCityId(e.target.value);
-                      setSelectedCourier('');
-                      setCouriers([]);
-                      setShippingCost(0);
-                    }}
-                    disabled={!selectedProvinceId || loadingLocation}
-                  >
-                    <option value="">-- Pilih Kota/Kab --</option>
-                    {cities.map((c) => (
-                      <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
-                    ))}
-                  </select>
-
-                  {selectedCityId && (
-                    <select
-                      className="form-input"
-                      value={selectedCourier}
-                      onChange={(e) => {
-                        setSelectedCourier(e.target.value);
-                        if (e.target.value) calculateShipping(selectedCityId, e.target.value);
-                        else {
-                          setCouriers([]);
-                          setShippingCost(0);
-                        }
-                      }}
-                    >
-                      <option value="">-- Pilih Kurir --</option>
-                      <option value="jne">JNE</option>
-                      <option value="pos">POS Indonesia</option>
-                      <option value="tiki">TIKI</option>
-                    </select>
-                  )}
                 </div>
 
                 {loadingShipping && <p className="loading-text">Sedang menghitung ongkos kirim...</p>}
@@ -358,7 +438,7 @@ Tolong segera diproses ya, terima kasih!`;
 
             <div className="btn-row">
               <button className="secondary-btn" onClick={() => setStep('cart')}>← Kembali</button>
-              <button className="primary-btn" onClick={handleOrder} disabled={loading || (totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedCityId !== '')}>
+              <button className="primary-btn" onClick={handleOrder} disabled={loading || (totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedDistrictId !== '')}>
                 {loading ? 'Memproses...' : paymentMethod === 'qris' ? 'Buat QRIS 📱' : 'Pesan Sekarang ✓'}
               </button>
             </div>
