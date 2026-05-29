@@ -10,6 +10,7 @@ interface Product {
   description: string;
   price: number;
   stock: number;
+  weight: number;
   image_url: string;
 }
 
@@ -20,6 +21,7 @@ interface SellerData {
     owner_name: string;
     phone: string;
     address: string;
+    city_id: number | null;
   };
   products: Product[];
 }
@@ -55,7 +57,7 @@ function ProductCard({ product }: { product: Product }) {
           <span className="product-price">{formatRupiah(product.price)}</span>
           <button
             disabled={outOfStock}
-            onClick={() => addItem({ product_id: product.id, name: product.name, price: product.price, stock: product.stock, image_url: product.image_url })}
+            onClick={() => addItem({ product_id: product.id, name: product.name, price: product.price, stock: product.stock, weight: product.weight, image_url: product.image_url })}
             className={`add-btn ${outOfStock ? 'disabled' : inCart > 0 ? 'in-cart' : ''}`}
           >
             {outOfStock ? 'Habis' : inCart > 0 ? `+${inCart} 🛒` : '+ Keranjang'}
@@ -134,7 +136,7 @@ function StoreContent({ data, slug }: { data: SellerData; slug: string }) {
       )}
 
       {/* Cart Drawer */}
-      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} />}
+      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} />}
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }

@@ -3,6 +3,9 @@
 -- Jalankan SQL ini di Supabase Dashboard > SQL Editor
 -- ============================================================
 
+-- Update table stores untuk mendukung RajaOngkir
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS city_id INT;
+
 -- 1. Tabel sellers
 CREATE TABLE IF NOT EXISTS sellers (
   id          BIGSERIAL PRIMARY KEY,
@@ -22,6 +25,7 @@ CREATE TABLE IF NOT EXISTS seller_products (
   description TEXT DEFAULT '',
   price       NUMERIC(15, 2) NOT NULL,
   stock       INT DEFAULT 0,
+  weight      INT DEFAULT 0, -- Berat produk dalam gram
   image_url   TEXT DEFAULT '',
   is_active   BOOLEAN DEFAULT TRUE,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
@@ -38,6 +42,8 @@ CREATE TABLE IF NOT EXISTS seller_orders (
   customer_address TEXT DEFAULT '', -- Alamat pengiriman
   items          JSONB NOT NULL,   -- [{productId, name, qty, price, discount}]
   total_amount   NUMERIC(15, 2) NOT NULL,
+  shipping_cost  NUMERIC(15, 2) DEFAULT 0, -- Ongkos kirim
+  courier_name   TEXT DEFAULT '',          -- Nama kurir (ex: JNE REG)
   payment_method TEXT DEFAULT 'manual',  -- 'manual' | 'qris'
   status         TEXT DEFAULT 'pending', -- 'pending' | 'paid' | 'cancelled'
   payment_url    TEXT DEFAULT '',        -- URL QRIS dari Duitku

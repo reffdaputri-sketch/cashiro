@@ -4,6 +4,7 @@ import 'package:mobile/providers/auth_provider.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/services/api_service.dart';
 
 
 class EditStoreScreen extends StatefulWidget {
@@ -21,6 +22,12 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   late TextEditingController _addressController;
   File? _imageFile;
   String? _currentImagePath;
+  
+  List<dynamic> _provinces = [];
+  List<dynamic> _cities = [];
+  String? _selectedProvinceId;
+  String? _selectedCityId;
+  bool _isLoadingLocation = false;
 
   @override
   void initState() {
@@ -32,6 +39,48 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _phoneController = TextEditingController(text: info['phone'] ?? '');
     _addressController = TextEditingController(text: info['address'] ?? '');
     _currentImagePath = info['imagePath'];
+    
+    final cityIdStr = info['cityId'];
+    if (cityIdStr != null && cityIdStr.isNotEmpty) {
+      _selectedCityId = cityIdStr;
+    }
+    
+    _fetchProvinces();
+  }
+
+  Future<void> _fetchProvinces() async {
+    setState(() => _isLoadingLocation = true);
+    try {
+      final data = await ApiService().getRajaOngkirLocations(type: 'province');
+      setState(() {
+        _provinces = data;
+      });
+      // If we have a selectedCityId from initial data, we might need to fetch cities for its province
+      // But we don't know the province ID of the city unless we search through all cities or assume the user will just see the city ID.
+      // To keep it simple, we'll just show the provinces. If they want to edit city, they have to re-select province.
+    } catch (e) {
+      debugPrint('Failed to load provinces: $e');
+    } finally {
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
+  Future<void> _fetchCities(String provinceId) async {
+    setState(() {
+      _isLoadingLocation = true;
+      _cities = [];
+      _selectedCityId = null;
+    });
+    try {
+      final data = await ApiService().getRajaOngkirLocations(type: 'city', provinceId: provinceId);
+      setState(() {
+        _cities = data;
+      });
+    } catch (e) {
+      debugPrint('Failed to load cities: $e');
+    } finally {
+      setState(() => _isLoadingLocation = false);
+    }
   }
 
   @override
@@ -63,6 +112,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         _phoneController.text,
         _addressController.text,
         _imageFile?.path ?? _currentImagePath,
+        cityId: _selectedCityId != null ? int.tryParse(_selectedCityId!) : null,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -250,10 +300,50 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
               ),
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Alamat'),
+                decoration: const InputDecoration(labelText: 'Alamat Lengkap'),
                 maxLines: 3,
                 validator: (value) => value!.isEmpty ? 'Harap isi alamat' : null,
               ),
+              const SizedBox(height: 16),
+              const Text('Lokasi Pengiriman (Untuk Ongkir)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              if (_isLoadingLocation && _provinces.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else
+                DropdownButtonFormField<String>(
+                  value: _selectedProvinceId,
+                  decoration: const InputDecoration(labelText: 'Provinsi', border: OutlineInputBorder()),
+                  items: _provinces.map((p) => DropdownMenuItem<String>(
+                    value: p['province_id'].toString(),
+                    child: Text(p['province']),
+                  )).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedProvinceId = val);
+                      _fetchCities(val);
+                    }
+                  },
+                ),
+              const SizedBox(height: 16),
+              if (_isLoadingLocation && _provinces.isNotEmpty)
+                const Center(child: CircularProgressIndicator())
+              else if (_cities.isNotEmpty || _selectedCityId != null)
+                DropdownButtonFormField<String>(
+                  value: _cities.any((c) => c['city_id'].toString() == _selectedCityId) ? _selectedCityId : null,
+                  decoration: const InputDecoration(labelText: 'Kota / Kabupaten', border: OutlineInputBorder()),
+                  items: _cities.map((c) => DropdownMenuItem<String>(
+                    value: c['city_id'].toString(),
+                    child: Text("${c['type']} ${c['city_name']}"),
+                  )).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedCityId = val);
+                    }
+                  },
+                  hint: _selectedCityId != null && _cities.isEmpty 
+                      ? Text('Kota ID: $_selectedCityId (Pilih ulang provinsi)') 
+                      : null,
+                ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submit,

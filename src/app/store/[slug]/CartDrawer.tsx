@@ -1,18 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-context';
 
 interface CartDrawerProps {
   slug: string;
   onClose: () => void;
+  storeCityId: number | null;
 }
 
 function formatRupiah(num: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 }
 
-export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
+export default function CartDrawer({ slug, onClose, storeCityId }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
@@ -26,6 +27,83 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
   const [orderId, setOrderId] = useState<number | null>(null);
   const [waLink, setWaLink] = useState('');
 
+  // Shipping State
+  const [provinces, setProvinces] = useState<any[]>([]);
+  const [cities, setCities] = useState<any[]>([]);
+  const [selectedProvinceId, setSelectedProvinceId] = useState('');
+  const [selectedCityId, setSelectedCityId] = useState('');
+  const [couriers, setCouriers] = useState<any[]>([]);
+  const [selectedCourier, setSelectedCourier] = useState('');
+  const [shippingCost, setShippingCost] = useState(0);
+  const [courierName, setCourierName] = useState('');
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+
+  const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.qty, 0);
+
+  useEffect(() => {
+    if (step === 'checkout' && storeCityId) {
+      fetchProvinces();
+    }
+  }, [step, storeCityId]);
+
+  const fetchProvinces = async () => {
+    setLoadingLocation(true);
+    try {
+      const res = await fetch('/api/rajaongkir/location?type=province');
+      const data = await res.json();
+      if (res.ok) setProvinces(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const fetchCities = async (provId: string) => {
+    setLoadingLocation(true);
+    try {
+      const res = await fetch(`/api/rajaongkir/location?type=city&province=${provId}`);
+      const data = await res.json();
+      if (res.ok) setCities(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  const calculateShipping = async (cityId: string, courierCode: string) => {
+    if (!storeCityId || !cityId || !courierCode || totalWeight <= 0) return;
+    setLoadingShipping(true);
+    setError('');
+    try {
+      const res = await fetch('/api/rajaongkir/cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: storeCityId,
+          destination: cityId,
+          weight: totalWeight < 1000 ? 1000 : totalWeight, // minimum 1kg
+          courier: courierCode,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.length > 0 && data[0].costs.length > 0) {
+        setCouriers(data[0].costs);
+      } else {
+        setError('Kurir tidak tersedia untuk rute ini.');
+        setCouriers([]);
+        setShippingCost(0);
+        setCourierName('');
+      }
+    } catch (e: any) {
+      setError('Gagal menghitung ongkos kirim');
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
+
   const handleOrder = async () => {
     setLoading(true);
     setError('');
@@ -36,6 +114,8 @@ export default function CartDrawer({ slug, onClose }: CartDrawerProps) {
         customer_address: address,
         notes,
         payment_method: paymentMethod,
+        shipping_cost: shippingCost,
+        courier_name: courierName,
         items: items.map(i => ({ product_id: i.product_id, qty: i.qty })),
       };
 
@@ -73,7 +153,8 @@ Alamat: ${address || '-'}
 ${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
 
 Catatan: ${notes || '-'}
-*Total: ${formatRupiah(total)}*
+Ongkos Kirim: ${shippingCost > 0 ? `${formatRupiah(shippingCost)} (${courierName})` : '-'}
+*Grand Total: ${formatRupiah(total + shippingCost)}*
 
 Tolong segera diproses ya, terima kasih!`;
           
@@ -147,6 +228,94 @@ Tolong segera diproses ya, terima kasih!`;
             <label className="form-label">Alamat Pengiriman (Wajib untuk dikirim)</label>
             <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
 
+            {/* RajaOngkir Shipping Cost */}
+            {storeCityId && totalWeight > 0 && (
+              <div className="shipping-box">
+                <h4 className="shipping-title">Pengiriman (Total Berat: {totalWeight}g)</h4>
+                
+                <div className="shipping-grid">
+                  <select
+                    className="form-input"
+                    value={selectedProvinceId}
+                    onChange={(e) => {
+                      setSelectedProvinceId(e.target.value);
+                      setSelectedCityId('');
+                      setCouriers([]);
+                      setShippingCost(0);
+                      if (e.target.value) fetchCities(e.target.value);
+                    }}
+                    disabled={loadingLocation}
+                  >
+                    <option value="">-- Pilih Provinsi --</option>
+                    {provinces.map((p) => (
+                      <option key={p.province_id} value={p.province_id}>{p.province}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="form-input"
+                    value={selectedCityId}
+                    onChange={(e) => {
+                      setSelectedCityId(e.target.value);
+                      setSelectedCourier('');
+                      setCouriers([]);
+                      setShippingCost(0);
+                    }}
+                    disabled={!selectedProvinceId || loadingLocation}
+                  >
+                    <option value="">-- Pilih Kota/Kab --</option>
+                    {cities.map((c) => (
+                      <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
+                    ))}
+                  </select>
+
+                  {selectedCityId && (
+                    <select
+                      className="form-input"
+                      value={selectedCourier}
+                      onChange={(e) => {
+                        setSelectedCourier(e.target.value);
+                        if (e.target.value) calculateShipping(selectedCityId, e.target.value);
+                        else {
+                          setCouriers([]);
+                          setShippingCost(0);
+                        }
+                      }}
+                    >
+                      <option value="">-- Pilih Kurir --</option>
+                      <option value="jne">JNE</option>
+                      <option value="pos">POS Indonesia</option>
+                      <option value="tiki">TIKI</option>
+                    </select>
+                  )}
+                </div>
+
+                {loadingShipping && <p className="loading-text">Sedang menghitung ongkos kirim...</p>}
+
+                {couriers.length > 0 && (
+                  <div className="courier-list">
+                    {couriers.map((c, idx) => (
+                      <label key={idx} className="courier-option">
+                        <input
+                          type="radio"
+                          name="shipping_service"
+                          onChange={() => {
+                            setShippingCost(c.cost[0].value);
+                            setCourierName(`${selectedCourier.toUpperCase()} ${c.service}`);
+                          }}
+                        />
+                        <div className="courier-info">
+                          <span className="courier-service">{selectedCourier.toUpperCase()} - {c.service}</span>
+                          <span className="courier-etd">Estimasi: {c.cost[0].etd} hari</span>
+                        </div>
+                        <span className="courier-price">{formatRupiah(c.cost[0].value)}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <label className="form-label">Catatan (Opsional)</label>
             <textarea className="form-input" placeholder="Catatan pesanan..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
 
@@ -173,9 +342,15 @@ Tolong segera diproses ya, terima kasih!`;
                   <span>{formatRupiah(i.price * i.qty)}</span>
                 </div>
               ))}
+              {shippingCost > 0 && (
+                <div className="order-summary-row">
+                  <span>Ongkos Kirim ({courierName})</span>
+                  <span>{formatRupiah(shippingCost)}</span>
+                </div>
+              )}
               <div className="order-summary-row total-row">
                 <span>Total</span>
-                <span>{formatRupiah(total)}</span>
+                <span>{formatRupiah(total + shippingCost)}</span>
               </div>
             </div>
 
@@ -183,7 +358,7 @@ Tolong segera diproses ya, terima kasih!`;
 
             <div className="btn-row">
               <button className="secondary-btn" onClick={() => setStep('cart')}>← Kembali</button>
-              <button className="primary-btn" onClick={handleOrder} disabled={loading}>
+              <button className="primary-btn" onClick={handleOrder} disabled={loading || (totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedCityId !== '')}>
                 {loading ? 'Memproses...' : paymentMethod === 'qris' ? 'Buat QRIS 📱' : 'Pesan Sekarang ✓'}
               </button>
             </div>
@@ -258,8 +433,21 @@ Tolong segera diproses ya, terima kasih!`;
           .btn-row .primary-btn, .btn-row .secondary-btn { flex: 1; }
 
           .form-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; display: block; }
-          .form-input { width: 100%; padding: 12px; border: 1.5px solid #e0e0f0; border-radius: 12px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; resize: none; }
+          .form-input { width: 100%; padding: 12px; border: 1.5px solid #e0e0f0; border-radius: 12px; font-size: 14px; font-family: inherit; outline: none; transition: border 0.2s; resize: none; background: white; }
           .form-input:focus { border-color: #006d77; }
+          
+          .shipping-box { background: #f0f4f8; padding: 16px; border-radius: 12px; border: 1px solid #d0e0e8; margin: 8px 0; }
+          .shipping-title { font-size: 14px; font-weight: 700; color: #006d77; margin-bottom: 12px; }
+          .shipping-grid { display: flex; flex-direction: column; gap: 10px; }
+          .loading-text { font-size: 12px; color: #666; font-style: italic; margin-top: 10px; }
+          
+          .courier-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+          .courier-option { display: flex; align-items: center; gap: 12px; background: white; padding: 12px; border-radius: 10px; border: 1px solid #e0e0f0; cursor: pointer; transition: all 0.2s; }
+          .courier-option:hover { border-color: #006d77; }
+          .courier-info { flex: 1; display: flex; flex-direction: column; }
+          .courier-service { font-weight: 600; font-size: 14px; color: #1a1a2e; }
+          .courier-etd { font-size: 12px; color: #666; }
+          .courier-price { font-weight: 700; color: #006d77; }
 
           .payment-options { display: flex; gap: 10px; }
           .payment-option { flex: 1; padding: 12px 8px; border: 2px solid #e0e0f0; border-radius: 12px; background: white; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: all 0.2s; text-align: center; }

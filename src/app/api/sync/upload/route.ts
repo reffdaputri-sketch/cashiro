@@ -66,6 +66,7 @@ export async function POST(req: Request) {
               description: payload.category || '',
               price: payload.price,
               stock: payload.stock,
+              weight: payload.weight || 0,
               image_url: payload.image_path || '',
               is_active: true,
               updated_at: new Date().toISOString(),

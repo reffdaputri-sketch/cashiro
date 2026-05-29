@@ -232,6 +232,7 @@ class ApiService {
     required String phone,
     required String address,
     required String? pin,
+    int? cityId,
   }) async {
     try {
       final response = await http.post(
@@ -245,6 +246,7 @@ class ApiService {
           'phone': phone,
           'address': address,
           'pin': pin,
+          'city_id': cityId,
         }),
       );
 
@@ -263,6 +265,22 @@ class ApiService {
   // ─────────────────────────────────────────
   // SELLER LANDING PAGE API
   // ─────────────────────────────────────────
+
+  /// Mengambil data provinsi / kota dari API RajaOngkir (via proxy)
+  Future<List<dynamic>> getRajaOngkirLocations({String type = 'province', String? provinceId}) async {
+    try {
+      String url = '$baseUrl/api/rajaongkir/location?type=$type';
+      if (provinceId != null) {
+        url += '&province=$provinceId';
+      }
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('getRajaOngkirLocations Error: $e');
+      rethrow;
+    }
+  }
 
   /// Aktivasi / ambil slug landing page seller
   Future<Map<String, dynamic>> activateSeller(String storeId) async {

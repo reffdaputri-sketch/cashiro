@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'kiosly.db');
     return await openDatabase(
       path,
-      version: 13,
+      version: 14,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -157,6 +157,9 @@ class DatabaseService {
     if (oldVersion < 13) {
       await db.execute('ALTER TABLE products ADD COLUMN is_online INTEGER DEFAULT 0');
     }
+    if (oldVersion < 14) {
+      await db.execute('ALTER TABLE products ADD COLUMN weight INTEGER DEFAULT 0');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -173,7 +176,8 @@ class DatabaseService {
         category TEXT,
         min_stock INTEGER DEFAULT 5,
         is_synced INTEGER DEFAULT 0,
-        is_online INTEGER DEFAULT 0
+        is_online INTEGER DEFAULT 0,
+        weight INTEGER DEFAULT 0
       )
     ''');
 

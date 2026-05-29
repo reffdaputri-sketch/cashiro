@@ -105,8 +105,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath) async {
-    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath);
+  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId}) async {
+    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId);
     await checkRegistration();
     
     // Update in cloud if online (license key is not mock)
@@ -122,6 +122,7 @@ class AuthProvider with ChangeNotifier {
           phone: phone,
           address: address,
           pin: null, // do not update PIN here
+          cityId: cityId,
         );
       } catch (e) {
         debugPrint('Cloud profile update failed: $e');

@@ -9,6 +9,7 @@ interface SellerData {
     owner_name: string;
     phone: string;
     address: string;
+    city_id: number | null;
   };
   products: {
     id: number;
@@ -16,6 +17,7 @@ interface SellerData {
     description: string;
     price: number;
     stock: number;
+    weight: number;
     image_url: string;
   }[];
 }

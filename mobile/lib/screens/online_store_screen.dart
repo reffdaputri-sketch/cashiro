@@ -379,6 +379,8 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     final address = o['customer_address'] as String? ?? '';
     final phone = o['customer_phone'] as String? ?? '';
     final notes = o['notes'] as String? ?? '';
+    final shippingCost = (o['shipping_cost'] as num?)?.toDouble() ?? 0.0;
+    final courierName = o['courier_name'] as String? ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -505,6 +507,16 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                           ],
                         ),
                       )),
+                    if (shippingCost > 0) ...[
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Ongkos Kirim (${courierName.isNotEmpty ? courierName : 'Kurir'})'),
+                          Text(_formatRupiah(shippingCost)),
+                        ],
+                      ),
+                    ],
                     const Divider(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

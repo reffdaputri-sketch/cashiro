@@ -25,6 +25,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
+  final _weightController = TextEditingController(text: '0'); // New
   final _codeController = TextEditingController();
   final _costPriceController = TextEditingController(); // New
   final _minStockController = TextEditingController(text: '5'); // New
@@ -44,6 +45,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _nameController.text = widget.product!.name;
       _priceController.text = widget.product!.price.toStringAsFixed(0);
       _stockController.text = widget.product!.stock.toString();
+      _weightController.text = widget.product!.weight.toString();
       _codeController.text = widget.product!.code ?? '';
       _costPriceController.text = widget.product!.costPrice.toStringAsFixed(0);
       _minStockController.text = widget.product!.minStock.toString();
@@ -191,6 +193,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         name: _nameController.text,
         price: double.tryParse(_priceController.text) ?? 0,
         stock: int.tryParse(_stockController.text) ?? 0,
+        weight: int.tryParse(_weightController.text) ?? 0,
         code: _codeController.text.isEmpty ? null : _codeController.text,
         imagePath: _imageFile?.path ?? _imageUrl,
         createdAt: widget.product?.createdAt ?? DateTime.now(),
@@ -329,11 +332,11 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
-                  controller: _minStockController,
+                  controller: _weightController,
                   decoration: const InputDecoration(
-                    labelText: 'Stok Minimum',
+                    labelText: 'Berat (Gram)',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.warning_amber_rounded),
+                    prefixIcon: Icon(Icons.scale),
                   ),
                   keyboardType: TextInputType.number,
                   validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
@@ -344,6 +347,19 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _minStockController,
+                  decoration: const InputDecoration(
+                    labelText: 'Stok Minimum',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.warning_amber_rounded),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _codeController,

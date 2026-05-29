@@ -13,6 +13,7 @@ class AuthService {
   static const String KEY_STORE_ID = 'store_id';
   static const String KEY_LICENSE_KEY = 'license_key';
   static const String KEY_EMAIL = 'email';
+  static const String KEY_CITY_ID = 'city_id';
 
   Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
@@ -75,16 +76,18 @@ class AuthService {
       'storeId': prefs.getString(KEY_STORE_ID) ?? '',
       'licenseKey': prefs.getString(KEY_LICENSE_KEY) ?? '',
       'email': prefs.getString(KEY_EMAIL) ?? '',
+      'cityId': prefs.getInt(KEY_CITY_ID)?.toString() ?? '',
     };
   }
 
-  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath) async {
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
     await prefs.setString(KEY_OWNER_NAME, ownerName);
     await prefs.setString(KEY_PHONE, phone);
     await prefs.setString(KEY_ADDRESS, address);
     if (imagePath != null) await prefs.setString(KEY_STORE_IMAGE, imagePath);
+    if (cityId != null) await prefs.setInt(KEY_CITY_ID, cityId);
   }
 
   Future<void> updatePin(String newPin) async {

@@ -8,6 +8,7 @@ interface CartItem {
   price: number;
   qty: number;
   stock: number;
+  weight: number;
   image_url?: string;
 }
 
