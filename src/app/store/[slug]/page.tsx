@@ -10,6 +10,9 @@ interface SellerData {
     phone: string;
     address: string;
     city_id: number | null;
+    bank_name: string;
+    bank_account: string;
+    bank_account_name: string;
   };
   products: {
     id: number;

@@ -442,25 +442,28 @@ class ApiService {
     }
   }
 
-  /// Withdraw referral commission (minimum 50000)
-  Future<void> withdrawCommission(String slug, double amount) async {
+  /// Ajukan permintaan penarikan komisi referral (minimum Rp 50.000)
+  /// Permintaan akan masuk ke admin panel dan menunggu persetujuan
+  Future<void> requestReferralWithdrawal(String storeId, double amount) async {
     if (amount < 50000) {
-      throw Exception('Minimum withdrawal is Rp 50.000');
+      throw Exception('Minimum penarikan referral adalah Rp 50.000');
     }
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/sellers/$slug/withdraw-commission'),
+        Uri.parse('$baseUrl/api/withdrawals/referral/request'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'amount': amount}),
+        body: jsonEncode({'storeId': storeId, 'amount': amount}),
       );
       if (response.statusCode != 200) {
         throw Exception(_parseError(response.body));
       }
     } catch (e) {
-      debugPrint('withdrawCommission Error: $e');
+      debugPrint('requestReferralWithdrawal Error: $e');
       rethrow;
     }
   }
+  Future<Map<String, dynamic>> getSellerReferrals(String slug) async {
+  /// Ambil data referral seller (list teman yang diajak + saldo komisi)
   Future<Map<String, dynamic>> getSellerReferrals(String slug) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/sellers/$slug/referrals'));

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle } from 'lucide-react';
+import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,7 +14,15 @@ export default function AdminDashboard() {
   const [licenses, setLicenses] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'licenses' | 'stores'>('licenses');
+  const [activeTab, setActiveTab] = useState<'licenses' | 'stores' | 'withdrawals'>('licenses');
+
+  // Withdrawal state
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [withdrawalFilter, setWithdrawalFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
+  const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState('');
 
   // Manual generation form
   const [manualEmail, setManualEmail] = useState('');
@@ -80,6 +88,46 @@ export default function AdminDashboard() {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchWithdrawals = async (status = withdrawalFilter) => {
+    setWithdrawalLoading(true);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch(`/api/withdrawals/referral/admin?status=${status}`, {
+        headers: { Authorization: token },
+      });
+      const data = await res.json();
+      if (res.ok) setWithdrawals(data.requests || []);
+    } catch (err) {
+      console.error('Failed to fetch withdrawals:', err);
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const handleWithdrawalAction = async (id: string, action: 'approved' | 'rejected') => {
+    setProcessingId(id);
+    setActionMessage('');
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/withdrawals/referral/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify({ id, action, note: rejectNote[id] || '' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMessage(data.message || 'Berhasil diproses');
+        fetchWithdrawals(withdrawalFilter);
+      } else {
+        setActionMessage(data.error || 'Gagal memproses');
+      }
+    } catch {
+      setActionMessage('Gagal terhubung ke server');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -292,12 +340,12 @@ export default function AdminDashboard() {
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
               
               {/* Tabs */}
-              <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 w-full md:w-auto">
+              <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 w-full md:w-auto flex-wrap gap-1">
                 <button
                   onClick={() => setActiveTab('licenses')}
-                  className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                    activeTab === 'licenses' 
-                      ? 'bg-blue-600 text-white shadow-md' 
+                  className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                    activeTab === 'licenses'
+                      ? 'bg-blue-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -305,13 +353,23 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   onClick={() => setActiveTab('stores')}
-                  className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                    activeTab === 'stores' 
-                      ? 'bg-blue-600 text-white shadow-md' 
+                  className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                    activeTab === 'stores'
+                      ? 'bg-blue-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  Daftar Toko / Pelanggan
+                  Daftar Toko
+                </button>
+                <button
+                  onClick={() => { setActiveTab('withdrawals'); fetchWithdrawals('pending'); }}
+                  className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'withdrawals'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Wallet size={14} /> Penarikan Referral
                 </button>
               </div>
 
@@ -330,7 +388,136 @@ export default function AdminDashboard() {
 
             {/* List */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-xl overflow-hidden min-h-[450px]">
-              
+
+              {/* Withdrawal Tab */}
+              {activeTab === 'withdrawals' && (
+                <div>
+                  {/* Sub-filter */}
+                  <div className="flex items-center gap-2 p-4 border-b border-slate-800 flex-wrap">
+                    {(['pending', 'approved', 'rejected'] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setWithdrawalFilter(s); fetchWithdrawals(s); }}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                          withdrawalFilter === s
+                            ? s === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                              : s === 'approved' ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                              : 'bg-red-500/20 text-red-300 border-red-500/40'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                        }`}
+                      >
+                        {s === 'pending' ? '⏳ Menunggu' : s === 'approved' ? '✅ Disetujui' : '❌ Ditolak'}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => fetchWithdrawals(withdrawalFilter)}
+                      className="ml-auto p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                      title="Refresh"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                  </div>
+
+                  {actionMessage && (
+                    <div className="mx-4 mt-4 bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm rounded-xl px-4 py-3 flex items-center justify-between">
+                      <span>{actionMessage}</span>
+                      <button onClick={() => setActionMessage('')} className="cursor-pointer"><X size={14} /></button>
+                    </div>
+                  )}
+
+                  {withdrawalLoading ? (
+                    <div className="flex items-center justify-center p-16 text-slate-400">
+                      <RefreshCw className="animate-spin mr-2" size={18} /> Memuat data...
+                    </div>
+                  ) : withdrawals.length === 0 ? (
+                    <div className="text-center p-16 text-slate-500 text-sm">
+                      Tidak ada permintaan penarikan dengan status ini
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-800 bg-slate-950 text-slate-400 text-xs font-semibold uppercase">
+                            <th className="p-4 pl-6">Toko</th>
+                            <th className="p-4">Jumlah</th>
+                            <th className="p-4">Info Rekening</th>
+                            <th className="p-4">Tanggal</th>
+                            {withdrawalFilter === 'pending' && <th className="p-4 pr-6">Aksi</th>}
+                            {withdrawalFilter !== 'pending' && <th className="p-4 pr-6">Catatan</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {withdrawals.map((w: any) => (
+                            <tr key={w.id} className="hover:bg-slate-800/30 transition-all">
+                              <td className="p-4 pl-6">
+                                <div className="font-bold text-white">{w.stores?.store_name || '-'}</div>
+                                <div className="text-slate-400 text-xs">{w.stores?.owner_name || ''}</div>
+                                <div className="text-slate-500 text-[11px]">{w.stores?.email || ''}</div>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-bold text-emerald-400 text-base">
+                                  Rp {Number(w.amount).toLocaleString('id-ID')}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                {w.stores?.bank_name ? (
+                                  <div>
+                                    <div className="text-white font-semibold">{w.stores.bank_name}</div>
+                                    <div className="text-slate-300 font-mono text-sm">{w.stores.bank_account}</div>
+                                    <div className="text-slate-400 text-xs">{w.stores.bank_account_name}</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-500 text-xs italic">Rekening belum diisi</span>
+                                )}
+                              </td>
+                              <td className="p-4 text-slate-400 text-xs">
+                                {new Date(w.created_at).toLocaleString('id-ID', {
+                                  day: 'numeric', month: 'short', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })}
+                              </td>
+                              {withdrawalFilter === 'pending' ? (
+                                <td className="p-4 pr-6">
+                                  <div className="flex flex-col gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Catatan penolakan (opsional)"
+                                      value={rejectNote[w.id] || ''}
+                                      onChange={e => setRejectNote(prev => ({ ...prev, [w.id]: e.target.value }))}
+                                      className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white outline-none focus:ring-1 focus:ring-blue-500/50"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => handleWithdrawalAction(w.id, 'approved')}
+                                        disabled={processingId === w.id}
+                                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+                                      >
+                                        <CheckCircle size={12} /> Setujui
+                                      </button>
+                                      <button
+                                        onClick={() => handleWithdrawalAction(w.id, 'rejected')}
+                                        disabled={processingId === w.id}
+                                        className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+                                      >
+                                        <XCircle size={12} /> Tolak
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              ) : (
+                                <td className="p-4 pr-6 text-slate-400 text-xs">
+                                  {w.note || '-'}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === 'licenses' ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
