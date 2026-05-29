@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/database_service.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/cart_provider.dart';
+import 'package:mobile/models/cart_item.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/services/receipt_service.dart';
 import 'package:mobile/providers/auth_provider.dart';
