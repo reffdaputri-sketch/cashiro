@@ -31,7 +31,7 @@ export async function GET(req: Request) {
         note,
         created_at,
         processed_at,
-        stores (store_name, owner_name, email, phone)
+        stores (store_name, owner_name, email, phone, bank_name, bank_account, bank_account_name)
       `)
       .eq('type', 'referral')
       .eq('status', status)
