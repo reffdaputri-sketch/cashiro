@@ -11,6 +11,7 @@ class Product {
   final double costPrice;
   final String? category;
   final int minStock;
+  final bool isOnline;
   final List<ProductVariation> variations;
 
   Product({
@@ -24,6 +25,7 @@ class Product {
     this.costPrice = 0.0,
     this.category,
     this.minStock = 5,
+    this.isOnline = false,
     this.variations = const [],
   });
 
@@ -39,6 +41,7 @@ class Product {
       'cost_price': costPrice,
       'category': category,
       'min_stock': minStock,
+      'is_online': isOnline ? 1 : 0,
     };
   }
 
@@ -54,6 +57,7 @@ class Product {
       costPrice: map['cost_price'] ?? 0.0,
       category: map['category'],
       minStock: map['min_stock'] ?? 5,
+      isOnline: (map['is_online'] ?? 0) == 1,
       variations: variations,
     );
   }

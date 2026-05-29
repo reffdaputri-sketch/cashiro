@@ -46,6 +46,39 @@ export async function POST(req: Request) {
       if (upsertError) {
         throw new Error(`Gagal menyimpan data sinkronisasi: ${upsertError.message}`);
       }
+
+      // Auto-sync ke Toko Online jika seller sudah aktif
+      if (entity_type === 'products') {
+        const { data: seller } = await supabase
+          .from('sellers')
+          .select('id')
+          .eq('store_id', store_id)
+          .single();
+
+        if (seller) {
+          const isOnline = payload.is_online === 1;
+          
+          if (isOnline) {
+            await supabase.from('seller_products').upsert({
+              seller_id: seller.id,
+              local_product_id: local_id,
+              name: payload.name,
+              description: payload.category || '',
+              price: payload.price,
+              stock: payload.stock,
+              image_url: payload.image_path || '',
+              is_active: true,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'seller_id,local_product_id' });
+          } else {
+            // Nonaktifkan jika is_online = false
+            await supabase.from('seller_products')
+              .update({ is_active: false })
+              .eq('seller_id', seller.id)
+              .eq('local_product_id', local_id);
+          }
+        }
+      }
     }
 
     return NextResponse.json({ success: true });

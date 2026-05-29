@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS sellers (
 CREATE TABLE IF NOT EXISTS seller_products (
   id          BIGSERIAL PRIMARY KEY,
   seller_id   BIGINT NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+  local_product_id BIGINT, -- ID produk dari aplikasi kasir (SQLite)
   name        TEXT NOT NULL,
   description TEXT DEFAULT '',
   price       NUMERIC(15, 2) NOT NULL,
@@ -24,7 +25,8 @@ CREATE TABLE IF NOT EXISTS seller_products (
   image_url   TEXT DEFAULT '',
   is_active   BOOLEAN DEFAULT TRUE,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW()
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(seller_id, local_product_id) -- Supaya tidak ada duplikat saat sync
 );
 
 -- 3. Tabel seller_orders (pesanan dari landing page)
