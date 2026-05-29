@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check } from 'lucide-react';
+import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -361,12 +361,12 @@ export default function AdminDashboard() {
                             </td>
                             <td className="p-4">
                               {lic.is_used ? (
-                                <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-400 px-3 py-1 rounded-full text-xs font-semibold border border-red-500/20">
-                                  <XCircle size={12} /> Sudah Aktif
+                                <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-400 px-3 py-1 rounded-full text-xs font-semibold border border-green-500/20">
+                                  <CheckCircle size={12} /> Sudah Aktif
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-400 px-3 py-1 rounded-full text-xs font-semibold border border-green-500/20">
-                                  <CheckCircle size={12} /> Belum Digunakan
+                                <span className="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold border border-yellow-500/20">
+                                  <AlertCircle size={12} /> Belum Digunakan
                                 </span>
                               )}
                             </td>
