@@ -30,12 +30,21 @@ export async function POST(req: Request) {
     const { merchantCode, amount, merchantOrderId, signature, resultCode, email } = body;
     const apiKey = process.env.DUITKU_API_KEY || '';
 
+    console.log('--- DUKTUI CALLBACK DEBUG ---');
+    console.log('Received Body:', body);
+    console.log('API Key configured (exists):', !!apiKey);
+
     // Verify signature: md5(merchantCode + amount + merchantOrderId + apiKey)
     const signatureSource = (merchantCode || '') + (amount || '') + (merchantOrderId || '') + apiKey;
     const localSignature = crypto.createHash('md5').update(signatureSource).digest('hex');
 
+    console.log('Signature Source String:', signatureSource);
+    console.log('Local Signature Calculated:', localSignature);
+    console.log('Received Signature from Duitku:', signature);
+
     const isMock = false;
     if (signature !== localSignature) {
+      console.error('VERIFICATION ERROR: local signature does not match received signature');
       return new Response('Signature verification failed', { status: 401 });
     }
 
