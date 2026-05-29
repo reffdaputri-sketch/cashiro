@@ -476,8 +476,14 @@ class ApiService {
     }
   }
 
-  /// Menarik komisi referral menggunakan slug
-  Future<void> withdrawCommission(String slug, double amount) async {
+  /// Menarik komisi referral menggunakan slug dan informasi rekening
+  Future<void> withdrawCommission({
+    required String slug,
+    required double amount,
+    required String bankName,
+    required String bankAccount,
+    required String bankAccountName,
+  }) async {
     if (amount < 50000) {
       throw Exception('Minimum penarikan referral adalah Rp 50.000');
     }
@@ -485,13 +491,37 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/api/withdrawals/referral/request'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'slug': slug, 'amount': amount}),
+        body: jsonEncode({
+          'slug': slug,
+          'amount': amount,
+          'bankName': bankName,
+          'bankAccount': bankAccount,
+          'bankAccountName': bankAccountName,
+        }),
       );
       if (response.statusCode != 200) {
         throw Exception(_parseError(response.body));
       }
     } catch (e) {
       debugPrint('withdrawCommission Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Mengambil riwayat permintaan penarikan referral
+  Future<List<dynamic>> getReferralWithdrawalHistory(String slug) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/withdrawals/referral/request?slug=$slug'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['requests'] ?? [];
+      }
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('getReferralWithdrawalHistory Error: $e');
       rethrow;
     }
   }

@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // POST /api/withdrawals/referral/request
-// Body: { storeId: string, amount: number }
+// Body: { storeId: string, slug: string, amount: number, bankName?: string, bankAccount?: string, bankAccountName?: string }
 export async function POST(req: Request) {
   try {
-    const { storeId, slug, amount } = await req.json();
+    const { storeId, slug, amount, bankName, bankAccount, bankAccountName } = await req.json();
 
     if ((!storeId && !slug) || typeof amount !== 'number') {
       return NextResponse.json({ error: 'storeId atau slug, dan amount wajib diisi' }, { status: 400 });
@@ -57,6 +57,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Update info rekening bank di store jika diinputkan
+    if (bankName || bankAccount || bankAccountName) {
+      const updateData: any = {};
+      if (bankName) updateData.bank_name = bankName;
+      if (bankAccount) updateData.bank_account = bankAccount;
+      if (bankAccountName) updateData.bank_account_name = bankAccountName;
+
+      await supabase
+        .from('stores')
+        .update(updateData)
+        .eq('id', seller.store_id);
+    }
+
     // Buat permintaan penarikan
     const { data: request, error: insertErr } = await supabase
       .from('withdrawal_requests')
@@ -81,6 +94,45 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('withdrawal request error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// GET /api/withdrawals/referral/request
+// Query params: storeId or slug
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const storeId = url.searchParams.get('storeId');
+    const slug = url.searchParams.get('slug');
+
+    if (!storeId && !slug) {
+      return NextResponse.json({ error: 'storeId atau slug wajib diisi' }, { status: 400 });
+    }
+
+    let sellerQuery = supabase.from('sellers').select('id, store_id');
+    if (storeId) {
+      sellerQuery = sellerQuery.eq('store_id', storeId);
+    } else {
+      sellerQuery = sellerQuery.eq('slug', slug);
+    }
+    const { data: seller, error: sellerErr } = await sellerQuery.single();
+
+    if (sellerErr || !seller) {
+      return NextResponse.json({ error: 'Seller tidak ditemukan' }, { status: 404 });
+    }
+
+    const { data: requests, error: reqErr } = await supabase
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('store_id', seller.store_id)
+      .eq('type', 'referral')
+      .order('created_at', { ascending: false });
+
+    if (reqErr) throw reqErr;
+
+    return NextResponse.json({ requests: requests || [] });
+  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
