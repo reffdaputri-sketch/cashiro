@@ -12,7 +12,6 @@ import 'package:mobile/screens/expense_screen.dart';
 import 'package:mobile/screens/printer_settings_screen.dart';
 
 import 'package:mobile/screens/stock_report_screen.dart';
-import 'package:mobile/screens/withdraw_commission_screen.dart';
 import 'package:mobile/screens/master_data_screen.dart';
 import 'dart:async';
 import 'package:mobile/services/sync_service.dart';
@@ -303,10 +302,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     _buildGridItem(
                       context,
-                      icon: Icons.attach_money_outlined,
-                      color: Colors.lightGreen,
-                      title: 'Penarikan Komisi',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WithdrawCommissionScreen())),
+                      icon: Icons.settings_outlined,
+                      color: Colors.grey.shade600,
+                      title: 'Pengaturan Toko',
+                      onTap: () => _showSettingsBottomSheet(context),
                     ),
 
                 ],

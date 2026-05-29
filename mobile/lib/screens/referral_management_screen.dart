@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/services/api_service.dart';
+import 'package:mobile/screens/withdraw_commission_screen.dart';
 import 'package:intl/intl.dart';
 
 class ReferralManagementScreen extends StatefulWidget {
@@ -185,14 +186,23 @@ class _ReferralManagementScreenState extends State<ReferralManagementScreen> {
                             'Teman Bergabung: $_referredCount toko',
                             style: const TextStyle(color: Colors.white70, fontSize: 12),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const WithdrawCommissionScreen()),
+                              ).then((_) => _fetchReferrals());
+                            },
+                            icon: const Icon(Icons.wallet, size: 14),
+                            label: const Text('Tarik Komisi'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.green.shade900,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              elevation: 1,
                             ),
-                            child: const Text('Status: Aktif', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                          )
+                          ),
                         ],
                       ),
                     ],
