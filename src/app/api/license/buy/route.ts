@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const { data: existingStore } = await supabase
       .from('stores')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', email.trim())
       .maybeSingle();
 
     if (existingStore) {

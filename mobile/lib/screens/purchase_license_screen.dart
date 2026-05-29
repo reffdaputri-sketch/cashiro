@@ -61,6 +61,12 @@ class _PurchaseLicenseScreenState extends State<PurchaseLicenseScreen> {
           ),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pembelian Gagal: $e')),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
