@@ -14,6 +14,12 @@ export async function POST(req: Request) {
 
     if (contentType.includes('application/json')) {
       body = await req.json();
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      const text = await req.text();
+      const params = new URLSearchParams(text);
+      params.forEach((value, key) => {
+        body[key] = value;
+      });
     } else {
       const formData = await req.formData();
       formData.forEach((value, key) => {
