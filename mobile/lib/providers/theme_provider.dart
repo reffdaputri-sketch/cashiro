@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeProvider with ChangeNotifier {
   static const String _colorKey = 'primary_theme_color';
   
-  // Default Kiosly Green: 0xFF1B5E20
-  Color _primaryColor = const Color(0xFF1B5E20);
+  // Default Cashiro Blue: 0xFF1976D2 (Strong Blue)
+  Color _primaryColor = const Color(0xFF1976D2);
 
   Color get primaryColor => _primaryColor;
 

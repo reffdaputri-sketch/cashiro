@@ -134,24 +134,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _showDatabaseModeDialog(BuildContext context) async {
+    final primaryColor = Theme.of(context).primaryColor;
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.storage, color: Colors.indigo, size: 24),
-              SizedBox(width: 10),
-              Expanded(
+              Icon(Icons.storage, color: primaryColor, size: 24),
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Text(
                   'Pilih Mode Database',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -209,69 +212,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  InputDecoration _inputDeco(String label, IconData icon, {String? hint}) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      labelStyle: TextStyle(color: const Color(0xFF1A1A2E).withOpacity(0.7), fontSize: 14),
-      hintStyle: TextStyle(color: const Color(0xFF1A1A2E).withOpacity(0.4), fontSize: 14),
-      filled: true,
-      fillColor: const Color(0xFFF0F2F8),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade300, width: 1.5),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
-      ),
-      prefixIcon: Icon(icon, color: const Color(0xFF3F51B5).withOpacity(0.7), size: 20),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text('Registrasi & Aktivasi Toko',
-            style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-                color: Color(0xFF1A1A2E))),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        title: const Text('Registrasi & Aktivasi Toko'),
       ),
       body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(color: Color(0xFF3F51B5)),
-                  const SizedBox(height: 16),
-                  Text('Mendaftarkan toko...',
-                      style: TextStyle(color: Colors.grey.shade500)),
-                ],
-              ),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              padding: const EdgeInsets.all(24.0),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── Photo picker ──
+                    // Photo picker
                     Center(
                       child: GestureDetector(
                         onTap: _pickImage,
@@ -279,150 +237,132 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: 100,
                           height: 100,
                           decoration: BoxDecoration(
-                            color: Colors.indigo.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                                color: Colors.indigo.withOpacity(0.15),
-                                width: 2),
+                            color: primaryColor.withOpacity(0.08),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: primaryColor.withOpacity(0.3), width: 2),
                             image: _imageFile != null
-                                ? DecorationImage(
-                                    image: FileImage(_imageFile!),
-                                    fit: BoxFit.cover)
+                                ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
                                 : null,
                           ),
                           child: _imageFile == null
                               ? Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.add_a_photo_rounded,
-                                        size: 32,
-                                        color: Colors.indigo.withOpacity(0.4)),
+                                    Icon(Icons.add_a_photo, size: 32, color: primaryColor.withOpacity(0.5)),
                                     const SizedBox(height: 4),
-                                    Text('Foto Toko',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color:
-                                                Colors.indigo.withOpacity(0.5),
-                                            fontWeight: FontWeight.w500)),
+                                    Text('Foto Toko', style: TextStyle(fontSize: 11, color: primaryColor.withOpacity(0.8))),
                                   ],
                                 )
                               : null,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 32),
 
-                    // ── Section: Lisensi ──
-                    _sectionLabel('Informasi Lisensi'),
+                    // Section: Lisensi
+                    _sectionLabel('Informasi Lisensi', primaryColor),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _licenseKeyController,
-                      decoration:
-                          _inputDeco('Kode Lisensi Cashiro', Icons.vpn_key_rounded,
-                              hint: 'CSH-XXXX-XXXX'),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Harap isi kode lisensi'
-                          : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Kode Lisensi Cashiro',
+                        hintText: 'CSH-XXXX-XXXX',
+                        prefixIcon: Icon(Icons.vpn_key),
+                      ),
+                      validator: (value) => value == null || value.isEmpty ? 'Harap isi kode lisensi' : null,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration:
-                          _inputDeco('Alamat Email Lisensi', Icons.email_rounded),
+                      decoration: const InputDecoration(
+                        labelText: 'Alamat Email Lisensi',
+                        prefixIcon: Icon(Icons.email),
+                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Harap isi email';
-                        }
-                        if (!value.contains('@')) {
-                          return 'Format email tidak valid';
-                        }
+                        if (value == null || value.isEmpty) return 'Harap isi email';
+                        if (!value.contains('@')) return 'Format email tidak valid';
                         return null;
                       },
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Section: Toko ──
-                    _sectionLabel('Detail Toko'),
+                    // Section: Toko
+                    _sectionLabel('Detail Toko', primaryColor),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _storeNameController,
-                      decoration:
-                          _inputDeco('Nama Toko', Icons.store_rounded),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Harap isi nama toko'
-                          : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Nama Toko',
+                        prefixIcon: Icon(Icons.store),
+                      ),
+                      validator: (value) => value == null || value.isEmpty ? 'Harap isi nama toko' : null,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _ownerNameController,
-                      decoration:
-                          _inputDeco('Nama Pemilik', Icons.person_rounded),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Harap isi nama pemilik'
-                          : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Nama Pemilik',
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      validator: (value) => value == null || value.isEmpty ? 'Harap isi nama pemilik' : null,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _phoneController,
-                      decoration:
-                          _inputDeco('Nomor Telepon', Icons.phone_rounded),
+                      decoration: const InputDecoration(
+                        labelText: 'Nomor Telepon',
+                        prefixIcon: Icon(Icons.phone),
+                      ),
                       keyboardType: TextInputType.phone,
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Harap isi nomor telepon'
-                          : null,
+                      validator: (value) => value == null || value.isEmpty ? 'Harap isi nomor telepon' : null,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _addressController,
-                      decoration:
-                          _inputDeco('Alamat Toko', Icons.location_on_rounded),
+                      decoration: const InputDecoration(
+                        labelText: 'Alamat Toko',
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
                       maxLines: 2,
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Harap isi alamat'
-                          : null,
+                      validator: (value) => value == null || value.isEmpty ? 'Harap isi alamat' : null,
                     ),
                     const SizedBox(height: 24),
 
-                    // ── Section: Keamanan ──
-                    _sectionLabel('Keamanan'),
+                    // Section: Keamanan
+                    _sectionLabel('Keamanan', primaryColor),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _pinController,
-                      decoration: _inputDeco(
-                          'PIN Masuk / Transaksi', Icons.lock_rounded),
+                      decoration: const InputDecoration(
+                        labelText: 'PIN Masuk / Transaksi',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
                       keyboardType: TextInputType.number,
                       obscureText: true,
                       maxLength: 6,
-                      validator: (value) => (value == null || value.length < 4)
-                          ? 'PIN minimal 4 digit'
-                          : null,
+                      validator: (value) => (value == null || value.length < 4) ? 'PIN minimal 4 digit' : null,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: _referralCodeController,
-                      decoration: _inputDeco(
-                          'Kode Referral (Opsional)', Icons.card_giftcard_rounded,
-                          hint: 'CSH-XXXX-XXXX'),
+                      decoration: const InputDecoration(
+                        labelText: 'Kode Referral (Opsional)',
+                        hintText: 'CSH-XXXX-XXXX',
+                        prefixIcon: Icon(Icons.card_giftcard),
+                      ),
                     ),
                     const SizedBox(height: 32),
 
-                    // ── Submit Button ──
+                    // Submit Button
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3F51B5),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Aktifkan & Daftar Toko',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: const Text('Aktifkan & Daftar Toko', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -433,14 +373,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _sectionLabel(String text) {
+  Widget _sectionLabel(String text, Color primaryColor) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF3F51B5),
-        letterSpacing: 0.5,
+      style: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        color: primaryColor,
       ),
     );
   }
