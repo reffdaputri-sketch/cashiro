@@ -37,7 +37,7 @@ export default function AdminDashboard() {
 
   const fetchWAStatus = async () => {
     try {
-      const res = await fetch('http://localhost:3001/status');
+      const res = await fetch('https://serv.kiosly.web.id/status');
       const data = await res.json();
       setWaStatus(data.status);
       setWaQR(data.qr || null);
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   const handleWALogout = async () => {
     setWaLoading(true);
     try {
-      await fetch('http://localhost:3001/logout', { method: 'POST' });
+      await fetch('https://serv.kiosly.web.id/logout', { method: 'POST' });
       setWaStatus('disconnected');
       setWaQR(null);
       setTimeout(fetchWAStatus, 3000);
