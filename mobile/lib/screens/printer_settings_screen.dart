@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:printing/printing.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PrinterSettingsScreen extends StatefulWidget {
@@ -10,43 +12,82 @@ class PrinterSettingsScreen extends StatefulWidget {
 }
 
 class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
-  List<Printer> _printers = [];
+  BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
+  List<BluetoothDevice> _devices = [];
+  BluetoothDevice? _device;
+  bool _connected = false;
   bool _isScanning = false;
   String? _selectedPrinterName;
-  String? _selectedPrinterUrl;
+  String? _selectedPrinterMac;
   bool _directPrint = false;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
-    _scanPrinters();
+    _initBluetooth();
   }
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _selectedPrinterName = prefs.getString('printer_name');
-      _selectedPrinterUrl = prefs.getString('printer_url');
-      _directPrint = prefs.getBool('direct_print') ?? false;
+      _selectedPrinterMac = prefs.getString('printer_mac');
+      _directPrint = prefs.getBool('direct_print') ?? true; // Default true for thermal
     });
+  }
+
+  Future<void> _initBluetooth() async {
+    bool? isConnected = await bluetooth.isConnected;
+    setState(() {
+      _connected = isConnected ?? false;
+    });
+
+    bluetooth.onStateChanged().listen((state) {
+      switch (state) {
+        case BlueThermalPrinter.CONNECTED:
+          setState(() {
+            _connected = true;
+          });
+          break;
+        case BlueThermalPrinter.DISCONNECTED:
+        case BlueThermalPrinter.DISCONNECT_REQUESTED:
+          setState(() {
+            _connected = false;
+          });
+          break;
+        default:
+          break;
+      }
+    });
+
+    _scanPrinters();
   }
 
   Future<void> _scanPrinters() async {
     if (_isScanning) return;
+
+    // Minta permission bluetooth
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.location,
+    ].request();
+
     setState(() {
       _isScanning = true;
     });
 
     try {
-      final printers = await Printing.listPrinters();
+      List<BluetoothDevice> devices = await bluetooth.getBondedDevices();
       setState(() {
-        _printers = printers;
+        _devices = devices;
       });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memindai printer: $e')),
+          SnackBar(content: Text('Gagal mencari perangkat: $e')),
         );
       }
     } finally {
@@ -58,17 +99,20 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     }
   }
 
-  Future<void> _selectPrinter(Printer printer) async {
+  Future<void> _selectPrinter(BluetoothDevice device) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('printer_name', printer.name);
-    await prefs.setString('printer_url', printer.url);
+    await prefs.setString('printer_name', device.name ?? 'Printer');
+    await prefs.setString('printer_mac', device.address ?? '');
+    
     setState(() {
-      _selectedPrinterName = printer.name;
-      _selectedPrinterUrl = printer.url;
+      _selectedPrinterName = device.name;
+      _selectedPrinterMac = device.address;
+      _device = device;
     });
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Printer ${printer.name} terpilih')),
+        SnackBar(content: Text('Printer ${device.name} terpilih')),
       );
     }
   }
@@ -81,15 +125,23 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
     });
   }
 
-  Future<void> _testPrint(Printer printer) async {
+  Future<void> _testPrint(BluetoothDevice device) async {
+    if (device.address == null) return;
+    
     try {
-      final doc = await Printing.convertHtml(
-        html: '<html><body><h1 style="text-align:center;">Test Print Kiosly</h1><p style="text-align:center;">Printer Anda berhasil terhubung!</p></body></html>',
-      );
-      await Printing.directPrintPdf(
-        printer: printer,
-        onLayout: (format) async => doc,
-      );
+      bool? isConnected = await bluetooth.isConnected;
+      if (!isConnected!) {
+        await bluetooth.connect(device);
+      }
+
+      bluetooth.printNewLine();
+      bluetooth.printCustom("Test Print Kiosly", 2, 1); // Size 2, Align Center
+      bluetooth.printNewLine();
+      bluetooth.printCustom("Printer Anda berhasil terhubung!", 1, 1);
+      bluetooth.printNewLine();
+      bluetooth.printNewLine();
+      
+      // bluetooth.disconnect(); // Opsional: tutup koneksi atau biarkan terbuka
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,17 +185,20 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                   child: const Icon(Icons.print, color: Colors.white),
                 ),
                 title: const Text('Printer Terpilih Aktif', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('$_selectedPrinterName\n$_selectedPrinterUrl', style: const TextStyle(fontSize: 12)),
+                subtitle: Text('$_selectedPrinterName\n$_selectedPrinterMac', style: const TextStyle(fontSize: 12)),
+                trailing: _connected 
+                  ? const Chip(label: Text('Connected', style: TextStyle(fontSize: 10, color: Colors.white)), backgroundColor: Colors.green)
+                  : const Chip(label: Text('Offline', style: TextStyle(fontSize: 10))),
               ),
             ),
             const SizedBox(height: 16),
           ],
-          // Direct Print Toggle Card
+          
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: SwitchListTile(
-              title: const Text('Cetak Langsung (Direct Print)', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Langsung mencetak ke printer tanpa menampilkan dialog sistem'),
+              title: const Text('Cetak Otomatis ke Thermal', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Langsung mencetak struk format teks saat transaksi selesai'),
               value: _directPrint,
               onChanged: _toggleDirectPrint,
               activeColor: Theme.of(context).primaryColor,
@@ -152,23 +207,23 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
           const SizedBox(height: 20),
 
           const Text(
-            'Daftar Printer Tersedia (Bluetooth / Network)',
+            'Daftar Perangkat Bluetooth (Paired)',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 10),
 
-          if (_printers.isEmpty)
+          if (_devices.isEmpty)
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: const Padding(
                 padding: EdgeInsets.all(24.0),
                 child: Column(
                   children: [
-                    Icon(Icons.print_disabled, size: 48, color: Colors.grey),
+                    Icon(Icons.bluetooth_disabled, size: 48, color: Colors.grey),
                     SizedBox(height: 8),
-                    Text('Tidak ada printer terdeteksi', style: TextStyle(color: Colors.grey)),
+                    Text('Tidak ada perangkat bluetooth', style: TextStyle(color: Colors.grey)),
                     Text(
-                      'Pastikan bluetooth printer Anda aktif dan sudah dipasangkan (paired) di pengaturan sistem HP.',
+                      'Pastikan bluetooth Anda aktif dan printer sudah di-pairing (dipasangkan) via pengaturan HP Anda.',
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
@@ -177,10 +232,10 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
               ),
             )
           else
-            ..._printers.map((printer) {
-              final isSelected = _selectedPrinterUrl == printer.url;
+            ..._devices.map((device) {
+              final isSelected = _selectedPrinterMac == device.address;
               return Card(
-                key: ValueKey(printer.url),
+                key: ValueKey(device.address),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
@@ -194,15 +249,15 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         ? Theme.of(context).primaryColor.withOpacity(0.1)
                         : Colors.grey[200],
                     child: Icon(
-                      Icons.print,
+                      Icons.bluetooth,
                       color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
                     ),
                   ),
                   title: Text(
-                    printer.name,
+                    device.name ?? 'Unknown Device',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(printer.url, style: const TextStyle(fontSize: 10)),
+                  subtitle: Text(device.address ?? '', style: const TextStyle(fontSize: 10)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -210,7 +265,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                         const Icon(Icons.check_circle, color: Colors.green)
                       else
                         ElevatedButton(
-                          onPressed: () => _selectPrinter(printer),
+                          onPressed: () => _selectPrinter(device),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
@@ -220,7 +275,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
                       IconButton(
                         icon: const Icon(Icons.play_arrow, color: Colors.blue),
                         tooltip: 'Cetak Tes',
-                        onPressed: () => _testPrint(printer),
+                        onPressed: () => _testPrint(device),
                       ),
                     ],
                   ),

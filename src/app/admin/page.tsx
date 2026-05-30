@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X } from 'lucide-react';
+import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X, Smartphone, Wifi, WifiOff, QrCode } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -25,18 +25,58 @@ export default function AdminDashboard() {
   const [actionMessage, setActionMessage] = useState('');
 
   // Manual generation form
+  // WhatsApp Gateway state
+  const [waStatus, setWaStatus] = useState<'disconnected' | 'connecting' | 'pairing' | 'connected'>('disconnected');
+  const [waQR, setWaQR] = useState<string | null>(null);
+  const [waLoading, setWaLoading] = useState(false);
+
   const [manualEmail, setManualEmail] = useState('');
   const [generatedKey, setGeneratedKey] = useState('');
   const [createError, setCreateError] = useState('');
   const [copiedKey, setCopiedKey] = useState(false);
+
+  const fetchWAStatus = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/status');
+      const data = await res.json();
+      setWaStatus(data.status);
+      setWaQR(data.qr || null);
+    } catch {
+      setWaStatus('disconnected');
+      setWaQR(null);
+    }
+  };
+
+  const handleWALogout = async () => {
+    setWaLoading(true);
+    try {
+      await fetch('http://localhost:3001/logout', { method: 'POST' });
+      setWaStatus('disconnected');
+      setWaQR(null);
+      setTimeout(fetchWAStatus, 3000);
+    } catch {
+      // ignore
+    } finally {
+      setWaLoading(false);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('cashiro_admin_token');
     if (token === 'admin-authorized-token-cashiro') {
       setIsAuthenticated(true);
       fetchDashboardData();
+      fetchWAStatus();
     }
   }, []);
+
+  // Poll WA status every 5 seconds when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchWAStatus();
+    const interval = setInterval(fetchWAStatus, 5000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,6 +304,79 @@ export default function AdminDashboard() {
           
           {/* Left Column: Manual Generator */}
           <div className="space-y-6">
+
+            {/* WhatsApp Gateway Panel */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-2xl" />
+
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Smartphone className="text-green-400" size={20} />
+                  WhatsApp Gateway
+                </h2>
+                <button
+                  onClick={fetchWAStatus}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                  title="Refresh Status"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </div>
+
+              {/* Status Badge */}
+              <div className="mb-4">
+                {waStatus === 'connected' && (
+                  <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <Wifi size={15} /> WhatsApp Terhubung!
+                  </div>
+                )}
+                {waStatus === 'pairing' && (
+                  <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <QrCode size={15} /> Scan QR Code untuk Login
+                  </div>
+                )}
+                {waStatus === 'connecting' && (
+                  <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <RefreshCw size={15} className="animate-spin" /> Sedang Menghubungkan...
+                  </div>
+                )}
+                {waStatus === 'disconnected' && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-2.5 text-sm font-semibold">
+                    <WifiOff size={15} /> Tidak Terhubung
+                  </div>
+                )}
+              </div>
+
+              {/* QR Code Display */}
+              {waQR && waStatus === 'pairing' && (
+                <div className="bg-white rounded-2xl p-3 flex items-center justify-center mb-4 shadow-lg">
+                  <img src={waQR} alt="WhatsApp QR Code" className="w-full max-w-[220px] h-auto" />
+                </div>
+              )}
+
+              {waStatus === 'pairing' && !waQR && (
+                <div className="bg-slate-950 border border-slate-700 rounded-2xl p-8 flex items-center justify-center mb-4 text-slate-500 text-sm">
+                  <RefreshCw size={16} className="animate-spin mr-2" /> Memuat QR Code...
+                </div>
+              )}
+
+              {/* WA Logout Button */}
+              {waStatus === 'connected' && (
+                <button
+                  onClick={handleWALogout}
+                  disabled={waLoading}
+                  className="w-full py-2.5 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-semibold rounded-xl text-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {waLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
+                  {waLoading ? 'Memutuskan...' : 'Logout WhatsApp'}
+                </button>
+              )}
+
+              <p className="text-slate-600 text-[11px] mt-3 text-center">
+                Server WA berjalan di port 3001
+              </p>
+            </div>
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl" />
               

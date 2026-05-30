@@ -63,17 +63,64 @@ export async function POST(req: Request) {
         const rawKey = crypto.randomBytes(4).toString('hex').toUpperCase();
         licenseKey = `CSH-${rawKey.slice(0, 4)}-${rawKey.slice(4)}`;
       }
-      
-      const customerEmail = email || additionalParam || 'customer@example.com';
 
+      // Parse additionalParam
+      let customerEmail = email || 'customer@example.com';
+      let waNumber = '';
+      let storeName = 'Cashiro';
+
+      if (additionalParam) {
+        try {
+          const parsed = JSON.parse(additionalParam);
+          customerEmail = parsed.email || customerEmail;
+          waNumber = parsed.wa_number || '';
+          storeName = parsed.store_name || storeName;
+        } catch (e) {
+          // Fallback if not JSON (old format)
+          customerEmail = additionalParam;
+        }
+      }
       // Insert license to Supabase
       const { error } = await supabase
         .from('licenses')
-        .insert({ key: licenseKey, email: customerEmail, is_used: false });
+        .insert({
+          key: licenseKey,
+          email: customerEmail,
+          is_used: false,
+          merchant_order_id: merchantOrderId
+        });
 
       if (error) throw error;
 
       // In real production, send email to customer with the licenseKey here
+
+      // Send WhatsApp message if wa_number exists
+      if (waNumber) {
+        try {
+          let formattedNumber = waNumber.replace(/\D/g, '');
+          if (formattedNumber.startsWith('0')) {
+            formattedNumber = '62' + formattedNumber.slice(1);
+          } else if (formattedNumber.startsWith('8')) {
+            formattedNumber = '62' + formattedNumber;
+          }
+
+          const apkLink = 'https://cashiro.web.id/download';
+          const waMessage = `🎉 *Pembayaran Berhasil!*\n\nTerima kasih telah membeli lisensi Cashiro.\n\n*Detail Pembelian:*\n• Nama Toko: *${storeName}*\n• Email: *${customerEmail}*\n\nBerikut adalah *Kode Lisensi* Anda:\n\`${licenseKey}\`\n\n⬇️ *Download Aplikasi Cashiro:*\n${apkLink}\n\nSilakan buka aplikasi, pilih menu "Daftar Toko", dan masukkan kode lisensi di atas untuk mengaktifkan akun Anda.`;
+          
+          await fetch('http://localhost:3001/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              number: formattedNumber,
+              message: waMessage,
+              api_key: "MEDIKA-SECRET-KEY"
+            })
+          });
+          console.log(`Pesan WA ke ${formattedNumber} berhasil di-trigger.`);
+        } catch (waError) {
+          console.error('Gagal menembak WA server:', waError);
+        }
+      }
 
       return new Response('OK', { status: 200 });
     }

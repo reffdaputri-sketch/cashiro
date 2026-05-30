@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { email, store_name, payment_method } = await req.json();
+    const { email, store_name, payment_method, wa_number } = await req.json();
     if (!email || !store_name) {
       return NextResponse.json({ error: 'Email dan Nama Toko wajib diisi' }, { status: 400 });
     }
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     const merchantCode = process.env.DUITKU_MERCHANT_CODE || '';
     const apiKey = process.env.DUITKU_API_KEY || '';
-    const inquiryUrl = process.env.DUITKU_INQUIRY_URL || 'https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry';
+    const inquiryUrl = process.env.DUITKU_INQUIRY_URL || 'https://passport.duitku.com/webapi/api/merchant/v2/inquiry';
     const merchantOrderId = `ORDER-${Date.now()}`;
     const paymentAmount = 25000; // Harga lisensi Rp 25.000
 
@@ -37,17 +37,21 @@ export async function POST(req: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+    // Pack email and wa_number in additionalParam
+    const extraData = JSON.stringify({ email, wa_number, store_name });
+
     const payload = {
       merchantCode,
       paymentAmount,
       merchantOrderId,
       productDetails: `Lisensi Aktivasi Cashiro - ${store_name}`,
       email,
-      paymentMethod: payment_method || 'SP', // Default to ShopeePay QRIS ('SP')
+      // Kode metode: 'VC'=Credit Card, 'SP'=ShopeePay (QRIS), 'VA'=Virtual Account, 'GP'=GoPay, 'OV'=OVO
+      paymentMethod: payment_method || 'SP', // Production default: QRIS ShopeePay
       signature,
       callbackUrl: `${appUrl}/api/license/callback`,
       returnUrl: `${appUrl}/payment-success`,
-      additionalParam: email, // Pass email in additionalParam so callback can retrieve it
+      additionalParam: extraData,
     };
 
     const response = await fetch(inquiryUrl, {

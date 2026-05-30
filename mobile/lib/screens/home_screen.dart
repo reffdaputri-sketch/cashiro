@@ -58,19 +58,26 @@ class _HomeScreenState extends State<HomeScreen> {
         final isMobile = constraints.maxWidth < 600 || isPortrait;
 
         if (isMobile) {
+          // BottomNavigationBar requires >= 2 items — render without nav bar if only 0 or 1 tab active
+          final showNavBar = activeTabs.length >= 2;
+
           return Scaffold(
-            body: activeTabs.isEmpty ? const Center(child: Text('Tidak ada akses')) : activeTabs[_currentIndex].screen,
-            bottomNavigationBar: activeTabs.isEmpty ? null : BottomNavigationBar(
-              currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: Colors.green,
-              unselectedItemColor: Colors.grey,
-              items: activeTabs.map((tab) => BottomNavigationBarItem(
-                icon: Icon(tab.icon),
-                label: tab.label,
-              )).toList(),
-            ),
+            body: activeTabs.isEmpty
+                ? const Center(child: Text('Tidak ada akses'))
+                : activeTabs[_currentIndex].screen,
+            bottomNavigationBar: showNavBar
+                ? BottomNavigationBar(
+                    currentIndex: _currentIndex,
+                    onTap: (index) => setState(() => _currentIndex = index),
+                    type: BottomNavigationBarType.fixed,
+                    selectedItemColor: Colors.green,
+                    unselectedItemColor: Colors.grey,
+                    items: activeTabs.map((tab) => BottomNavigationBarItem(
+                      icon: Icon(tab.icon),
+                      label: tab.label,
+                    )).toList(),
+                  )
+                : null,
           );
         }
 

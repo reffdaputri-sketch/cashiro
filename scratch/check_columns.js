@@ -45,9 +45,10 @@ function get(urlPath) {
 
 async function run() {
   try {
-    const licenses = await get('licenses?limit=1');
-    console.log("Licenses Table Sample:");
+    const licenses = await get('licenses?order=created_at.desc&limit=5');
+    console.log("Licenses Table Sample (Recent):");
     console.log(licenses);
+
 
     const stores = await get('stores?limit=1');
     console.log("Stores Table Sample:");

@@ -8,8 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 
 class ReceiptService {
+  final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
   Future<Uint8List> generateReceipt(
     Map<String, dynamic> storeInfo,
     int transactionId,
@@ -20,10 +23,7 @@ class ReceiptService {
     String paymentMethod = 'Tunai',
   }) async {
     final pdf = pw.Document();
-    final currencyFormatter =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    // Load store logo if available
     pw.MemoryImage? logoImage;
     if (storeInfo['imagePath'] != null && storeInfo['imagePath']!.isNotEmpty) {
       final file = File(storeInfo['imagePath']!);
@@ -33,11 +33,9 @@ class ReceiptService {
       }
     }
 
-    // Generate formatted invoice number (long format for dense barcode)
     final dateStr = DateFormat('yyyyMMdd').format(DateTime.now());
     final invoiceNo = 'KSL-$dateStr-${transactionId.toString().padLeft(4, '0')}';
 
-    // Calculate subtotal and discount dynamically
     final subtotal = items.fold<double>(0.0, (sum, item) => sum + (item['total'] as num).toDouble());
     final discount = subtotal - totalAmount;
 
@@ -151,6 +149,13 @@ class ReceiptService {
     return pdf.save();
   }
 
+  // Formatting strings for 32 character width (standard 58mm printer)
+  String _padLeftRight(String left, String right, {int width = 32}) {
+    int spaces = width - left.length - right.length;
+    if (spaces < 1) spaces = 1;
+    return left + (' ' * spaces) + right;
+  }
+
   Future<void> printReceipt(
     Map<String, dynamic> storeInfo,
     int transactionId,
@@ -160,27 +165,101 @@ class ReceiptService {
     List<Map<String, dynamic>> items, {
     String paymentMethod = 'Tunai',
   }) async {
-    final pdfBytes = await generateReceipt(storeInfo, transactionId, totalAmount, paidAmount, kembalian, items, paymentMethod: paymentMethod);
-    
     final prefs = await SharedPreferences.getInstance();
-    final printerName = prefs.getString('printer_name');
-    final printerUrl = prefs.getString('printer_url');
-    final directPrint = prefs.getBool('direct_print') ?? false;
+    final printerMac = prefs.getString('printer_mac');
+    final directPrint = prefs.getBool('direct_print') ?? true;
 
-    if (directPrint && printerName != null && printerUrl != null) {
+    // Jika direct print ON dan mac address printer ada, print ke thermal Bluetooth
+    if (directPrint && printerMac != null && printerMac.isNotEmpty) {
+      BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
+      
       try {
-        final printer = Printer(url: printerUrl, name: printerName);
-        await Printing.directPrintPdf(
-          printer: printer,
-          onLayout: (PdfPageFormat format) async => pdfBytes,
-          name: 'Struk-#$transactionId',
-        );
+        bool? isConnected = await bluetooth.isConnected;
+        
+        if (!isConnected!) {
+          // Harus buat BluetoothDevice object
+          List<BluetoothDevice> devices = await bluetooth.getBondedDevices();
+          BluetoothDevice? device;
+          try {
+            device = devices.firstWhere((d) => d.address == printerMac);
+          } catch (e) {
+            // Not found in bonded
+          }
+          
+          if (device != null) {
+            await bluetooth.connect(device);
+          } else {
+            throw Exception('Printer $printerMac tidak ditemukan di daftar perangkat yang dipasangkan.');
+          }
+        }
+
+        final dateStr = DateFormat('yyyyMMdd').format(DateTime.now());
+        final invoiceNo = 'KSL-$dateStr-${transactionId.toString().padLeft(4, '0')}';
+        
+        final subtotal = items.fold<double>(0.0, (sum, item) => sum + (item['total'] as num).toDouble());
+        final discount = subtotal - totalAmount;
+
+        // Print header
+        bluetooth.printCustom(storeInfo['storeName'] ?? 'Toko', 2, 1); // Size 2, Align Center
+        if (storeInfo['address'] != null) bluetooth.printCustom(storeInfo['address'], 0, 1);
+        if (storeInfo['phone'] != null) bluetooth.printCustom(storeInfo['phone'], 0, 1);
+        bluetooth.printNewLine();
+        
+        bluetooth.printLeftRight("No", invoiceNo, 0);
+        bluetooth.printLeftRight("Tgl", DateFormat('dd-MM-yyyy HH:mm').format(DateTime.now()), 0);
+        bluetooth.printCustom("--------------------------------", 0, 1);
+        
+        // Print items
+        for (var item in items) {
+          String nameLine = '${item['name']} x${item['quantity']}';
+          String totalLine = currencyFormatter.format(item['total']);
+          
+          if (nameLine.length > 20) {
+            bluetooth.printCustom(nameLine, 0, 0); // Print name on first line
+            bluetooth.printLeftRight("", totalLine, 0); // Print total on second line
+          } else {
+            bluetooth.printLeftRight(nameLine, totalLine, 0);
+          }
+
+          final double itemDiscount = (item['discount'] as num?)?.toDouble() ?? 0.0;
+          if (itemDiscount > 0.01) {
+            bluetooth.printCustom(" Diskon per item: -${currencyFormatter.format(itemDiscount)}", 0, 0);
+          }
+        }
+        
+        bluetooth.printCustom("--------------------------------", 0, 1);
+        
+        // Print totals
+        if (discount > 0.01) {
+          bluetooth.printLeftRight("Subtotal", currencyFormatter.format(subtotal), 0);
+          bluetooth.printLeftRight("Diskon", "- ${currencyFormatter.format(discount)}", 0);
+        }
+        
+        // Total (Size 1 for emphasis)
+        bluetooth.printLeftRight("Total", currencyFormatter.format(totalAmount), 1);
+        bluetooth.printLeftRight("Bayar ($paymentMethod)", currencyFormatter.format(paidAmount), 0);
+        bluetooth.printLeftRight("Kembali", currencyFormatter.format(kembalian), 0);
+        
+        bluetooth.printNewLine();
+        // Nomor resi sudah dicetak di atas, barcode di-skip karena tidak didukung natively oleh blue_thermal_printer versi ini tanpa plugin tambahan.
+        
+        bluetooth.printNewLine();
+        bluetooth.printCustom("Terima Kasih", 1, 1);
+        bluetooth.printNewLine();
+        bluetooth.printNewLine(); // Extra lines to feed paper out
+
+        // Disconnect after print (optional, but good for stability on cheap printers)
+        // await bluetooth.disconnect(); 
+
         return;
       } catch (e) {
-        debugPrint('Direct print failed, falling back to layoutPdf: $e');
+        debugPrint('Direct thermal print failed: $e');
+        // Fallback ke PDF UI jika error koneksi bluetooth
       }
     }
 
+    // Fallback: Tampilkan preview PDF
+    final pdfBytes = await generateReceipt(storeInfo, transactionId, totalAmount, paidAmount, kembalian, items, paymentMethod: paymentMethod);
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfBytes,
       name: 'Struk-#$transactionId',
@@ -203,7 +282,7 @@ class ReceiptService {
     
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Struk Belanja - ${storeInfo['storeName'] ?? 'Toko'} (ID: $transactionId)\nTotal: Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(totalAmount)}',
+      text: 'Struk Belanja - ${storeInfo['storeName'] ?? 'Toko'} (ID: $transactionId)\nTotal: ${currencyFormatter.format(totalAmount)}',
     );
   }
 }
