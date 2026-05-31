@@ -116,7 +116,7 @@ export async function POST(req: Request) {
           `⬇️ *Download Aplikasi Cashiro:*\n${apkLink}\n\n` +
           `Silakan buka aplikasi, pilih "Daftar Toko", lalu masukkan kode lisensi di atas.`;
 
-        const waRes = await fetch('http://localhost:3001/send-message', {
+        const waRes = await fetch('https://serv.kiosly.web.id/send-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
