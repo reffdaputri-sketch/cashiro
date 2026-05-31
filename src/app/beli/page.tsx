@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
@@ -84,13 +85,34 @@ const testimonials = [
   },
 ];
 
-export default function BeliPage() {
+function BeliContent() {
+  const searchParams = useSearchParams();
+  const resellerSlug = searchParams.get('ref');
+
   const [storeName, setStoreName] = useState('');
   const [email, setEmail] = useState('');
   const [waNumber, setWaNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Reseller state
+  const [resellerInfo, setResellerInfo] = useState<{ name: string; sell_price: number } | null>(null);
+  const [resellerLoading, setResellerLoading] = useState(false);
+
+  useEffect(() => {
+    if (!resellerSlug) return;
+    setResellerLoading(true);
+    fetch(`/api/resellers/${resellerSlug}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.reseller) setResellerInfo({ name: d.reseller.name, sell_price: d.reseller.sell_price });
+      })
+      .catch(() => {})
+      .finally(() => setResellerLoading(false));
+  }, [resellerSlug]);
+
+  const displayPrice = resellerInfo ? resellerInfo.sell_price : 25000;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +123,12 @@ export default function BeliPage() {
       const res = await fetch('/api/license/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, store_name: storeName, wa_number: waNumber }),
+        body: JSON.stringify({
+          email,
+          store_name: storeName,
+          wa_number: waNumber,
+          reseller_slug: resellerSlug || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -168,11 +195,18 @@ export default function BeliPage() {
                 ))}
               </div>
 
+              {/* Reseller Banner */}
+              {resellerInfo && (
+                <div className="mb-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold">
+                  🏷️ Harga via Reseller: <strong>{resellerInfo.name}</strong>
+                </div>
+              )}
+
               {/* Price Badge */}
               <div className="inline-flex items-center gap-4 bg-white border-2 border-blue-200 rounded-2xl px-6 py-4 shadow-md shadow-blue-100">
                 <div>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Harga Lisensi</p>
-                  <p className="text-4xl font-black text-blue-600">Rp 25.000</p>
+                  <p className="text-4xl font-black text-blue-600">Rp {displayPrice.toLocaleString('id-ID')}</p>
                   <p className="text-xs text-slate-500">Sekali bayar • Selamanya</p>
                 </div>
                 <div className="h-14 w-px bg-slate-200" />
@@ -294,7 +328,7 @@ export default function BeliPage() {
                 Mulai Pakai Cashiro Sekarang
               </h2>
               <p className="text-slate-500 mb-8 leading-relaxed">
-                Hanya dengan <strong className="text-slate-800">Rp 25.000</strong> sekali bayar, dapatkan
+                Hanya dengan <strong className="text-slate-800">Rp {displayPrice.toLocaleString('id-ID')}</strong> sekali bayar, dapatkan
                 akses seumur hidup ke seluruh fitur Cashiro. Kode lisensi dikirim otomatis ke WhatsApp Anda.
               </p>
 
@@ -349,8 +383,12 @@ export default function BeliPage() {
 
                 {/* Price tag */}
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 mb-6 text-center text-white">
-                  <p className="text-xs font-medium opacity-80 mb-1">Harga Lisensi Seumur Hidup</p>
-                  <p className="text-4xl font-black tracking-tight">Rp 25.000</p>
+                  <p className="text-xs font-medium opacity-80 mb-1">
+                    {resellerLoading ? 'Memuat harga...' : 'Harga Lisensi Seumur Hidup'}
+                  </p>
+                  <p className="text-4xl font-black tracking-tight">
+                    {resellerLoading ? '...' : `Rp ${displayPrice.toLocaleString('id-ID')}`}
+                  </p>
                   <p className="text-xs opacity-70 mt-1">Sekali bayar · Tidak ada biaya bulanan</p>
                 </div>
 
@@ -428,7 +466,7 @@ export default function BeliPage() {
                     <button
                       type="submit"
                       id="btn-beli-lisensi"
-                      disabled={isLoading}
+                      disabled={isLoading || resellerLoading}
                       className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] text-white font-semibold py-4 rounded-xl shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? (
@@ -437,7 +475,7 @@ export default function BeliPage() {
                         </>
                       ) : (
                         <>
-                          Bayar Sekarang – Rp 25.000 <ArrowRight className="w-4 h-4" />
+                          Bayar Sekarang – Rp {displayPrice.toLocaleString('id-ID')} <ArrowRight className="w-4 h-4" />
                         </>
                       )}
                     </button>
@@ -459,5 +497,13 @@ export default function BeliPage() {
 
       <Footer />
     </main>
+  );
+}
+
+export default function BeliPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <BeliContent />
+    </Suspense>
   );
 }

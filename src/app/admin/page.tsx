@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X, Smartphone, Wifi, WifiOff, QrCode } from 'lucide-react';
+import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X, Smartphone, Wifi, WifiOff, QrCode, Users, TrendingUp, Link2, Edit2, Ban } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,7 +14,7 @@ export default function AdminDashboard() {
   const [licenses, setLicenses] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'licenses' | 'stores' | 'withdrawals'>('licenses');
+  const [activeTab, setActiveTab] = useState<'licenses' | 'stores' | 'withdrawals' | 'resellers'>('licenses');
 
   // Withdrawal state
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -23,6 +23,23 @@ export default function AdminDashboard() {
   const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState('');
+
+  // Reseller state
+  const [resellers, setResellers] = useState<any[]>([]);
+  const [resellerLoading, setResellerLoading] = useState(false);
+  const [resellerForm, setResellerForm] = useState({ name: '', slug: '', email: '', password: '', sell_price: '', base_price: '25000' });
+  const [resellerFormError, setResellerFormError] = useState('');
+  const [resellerFormSuccess, setResellerFormSuccess] = useState('');
+  const [resellerWds, setResellerWds] = useState<any[]>([]);
+  const [resellerWdFilter, setResellerWdFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [resellerWdLoading, setResellerWdLoading] = useState(false);
+  const [editReseller, setEditReseller] = useState<any | null>(null);
+  const [editSellPrice, setEditSellPrice] = useState('');
+  const [editBasePrice, setEditBasePrice] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [resellerWdRejectNote, setResellerWdRejectNote] = useState<Record<string, string>>({});
+  const [resellerWdProcessingId, setResellerWdProcessingId] = useState<string | null>(null);
 
   // Manual generation form
   // WhatsApp Gateway state
@@ -131,6 +148,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchResellers = async () => {
+    setResellerLoading(true);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/resellers', { headers: { Authorization: token } });
+      const data = await res.json();
+      if (res.ok) setResellers(data.resellers || []);
+    } catch {}
+    finally { setResellerLoading(false); }
+  };
+
+  const fetchResellerWithdrawals = async (status = resellerWdFilter) => {
+    setResellerWdLoading(true);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch(`/api/resellers/withdrawals/admin?status=${status}`, { headers: { Authorization: token } });
+      const data = await res.json();
+      if (res.ok) setResellerWds(data.requests || []);
+    } catch {}
+    finally { setResellerWdLoading(false); }
+  };
+
   const fetchWithdrawals = async (status = withdrawalFilter) => {
     setWithdrawalLoading(true);
     const token = localStorage.getItem('cashiro_admin_token') || '';
@@ -207,6 +246,88 @@ export default function AdminDashboard() {
     navigator.clipboard.writeText(text);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const copyResellerLink = (slug: string) => {
+    const link = `${window.location.origin}/beli?ref=${slug}`;
+    navigator.clipboard.writeText(link);
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(null), 2000);
+  };
+
+  const handleAddReseller = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResellerFormError('');
+    setResellerFormSuccess('');
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/resellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify({
+          name: resellerForm.name,
+          slug: resellerForm.slug.toLowerCase().replace(/\s+/g, '-'),
+          email: resellerForm.email,
+          password: resellerForm.password,
+          sell_price: Number(resellerForm.sell_price),
+          base_price: Number(resellerForm.base_price),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setResellerFormSuccess(`Reseller "${data.reseller.name}" berhasil ditambahkan!`);
+      setResellerForm({ name: '', slug: '', email: '', password: '', sell_price: '', base_price: '25000' });
+      fetchResellers();
+    } catch (err: any) {
+      setResellerFormError(err.message);
+    }
+  };
+
+  const handleUpdateReseller = async () => {
+    if (!editReseller) return;
+    setEditLoading(true);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch(`/api/resellers/${editReseller.slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify({ sell_price: Number(editSellPrice), base_price: Number(editBasePrice) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEditReseller(null);
+      fetchResellers();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleToggleResellerActive = async (slug: string, current: boolean) => {
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    await fetch(`/api/resellers/${slug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: token },
+      body: JSON.stringify({ is_active: !current }),
+    });
+    fetchResellers();
+  };
+
+  const handleResellerWdAction = async (id: string, action: 'approved' | 'rejected') => {
+    setResellerWdProcessingId(id);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/resellers/withdrawals/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify({ id, action, note: resellerWdRejectNote[id] || '' }),
+      });
+      const data = await res.json();
+      if (res.ok) fetchResellerWithdrawals(resellerWdFilter);
+      else alert(data.error);
+    } catch {}
+    finally { setResellerWdProcessingId(null); }
   };
 
   // Filters
@@ -484,6 +605,16 @@ export default function AdminDashboard() {
                 >
                   <Wallet size={14} /> Penarikan Referral
                 </button>
+                <button
+                  onClick={() => { setActiveTab('resellers'); fetchResellers(); fetchResellerWithdrawals('pending'); }}
+                  className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'resellers'
+                      ? 'bg-violet-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Users size={14} /> Reseller
+                </button>
               </div>
 
               {/* Search */}
@@ -747,6 +878,291 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               )}
+
+              {/* === RESELLER TAB === */}
+              {activeTab === 'resellers' && (
+                <div className="p-5 space-y-6">
+
+                  {/* Edit Harga Modal */}
+                  {editReseller && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                      <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+                        <h3 className="text-white font-bold text-lg mb-1">Edit Harga Reseller</h3>
+                        <p className="text-slate-400 text-sm mb-5">{editReseller.name} · @{editReseller.slug}</p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Harga Jual (Rp)</label>
+                            <input type="number" value={editSellPrice} onChange={e => setEditSellPrice(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-violet-500 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Harga Dasar (Rp)</label>
+                            <input type="number" value={editBasePrice} onChange={e => setEditBasePrice(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-violet-500 text-sm"
+                            />
+                          </div>
+                          <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-2 text-sm">
+                            <span className="text-slate-400">Komisi reseller: </span>
+                            <span className="text-violet-300 font-bold">
+                              Rp {(Number(editSellPrice || 0) - Number(editBasePrice || 0)).toLocaleString('id-ID')} / lisensi
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 mt-5">
+                          <button onClick={() => setEditReseller(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-sm transition-all cursor-pointer">
+                            Batal
+                          </button>
+                          <button onClick={handleUpdateReseller} disabled={editLoading} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-sm transition-all disabled:opacity-50 cursor-pointer">
+                            {editLoading ? 'Menyimpan...' : 'Simpan'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form Tambah Reseller */}
+                  <div className="bg-slate-950 border border-violet-500/20 rounded-2xl p-5">
+                    <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+                      <PlusCircle className="text-violet-400" size={18} /> Tambah Reseller Baru
+                    </h3>
+                    {resellerFormError && (
+                      <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl px-4 py-2.5 mb-4">⚠️ {resellerFormError}</div>
+                    )}
+                    {resellerFormSuccess && (
+                      <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-xs rounded-xl px-4 py-2.5 mb-4">✅ {resellerFormSuccess}</div>
+                    )}
+                    <form onSubmit={handleAddReseller} className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Nama Reseller</label>
+                        <input required value={resellerForm.name}
+                          onChange={e => {
+                            const n = e.target.value;
+                            setResellerForm(p => ({ ...p, name: n, slug: n.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }));
+                          }}
+                          placeholder="Budi Santoso"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20"
+                        />
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Slug (Link ID)</label>
+                        <input required value={resellerForm.slug}
+                          onChange={e => setResellerForm(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))}
+                          placeholder="budi-santoso"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500 font-mono"
+                        />
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Email Login</label>
+                        <input required type="email" value={resellerForm.email}
+                          onChange={e => setResellerForm(p => ({ ...p, email: e.target.value }))}
+                          placeholder="budi@email.com"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500"
+                        />
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Password</label>
+                        <input required type="password" value={resellerForm.password}
+                          onChange={e => setResellerForm(p => ({ ...p, password: e.target.value }))}
+                          placeholder="Min 8 karakter"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Harga Jual (Rp)</label>
+                        <input required type="number" value={resellerForm.sell_price}
+                          onChange={e => setResellerForm(p => ({ ...p, sell_price: e.target.value }))}
+                          placeholder="50000"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 text-[11px] font-semibold uppercase mb-1">Harga Dasar (Rp)</label>
+                        <input required type="number" value={resellerForm.base_price}
+                          onChange={e => setResellerForm(p => ({ ...p, base_price: e.target.value }))}
+                          placeholder="25000"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none focus:border-violet-500"
+                        />
+                      </div>
+                      {resellerForm.sell_price && resellerForm.base_price && (
+                        <div className="col-span-2 bg-violet-500/10 border border-violet-500/30 rounded-xl px-4 py-2 text-sm">
+                          <span className="text-slate-400">Komisi per penjualan: </span>
+                          <span className="text-violet-300 font-bold">
+                            Rp {(Number(resellerForm.sell_price) - Number(resellerForm.base_price)).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      )}
+                      <button type="submit" className="col-span-2 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2">
+                        <PlusCircle size={16} /> Tambah Reseller
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Daftar Reseller */}
+                  <div>
+                    <h3 className="text-white font-bold text-base mb-3 flex items-center gap-2">
+                      <Users className="text-violet-400" size={16} /> Daftar Reseller ({resellers.length})
+                    </h3>
+                    {resellerLoading ? (
+                      <div className="text-center py-8 text-slate-400 text-sm flex items-center justify-center gap-2">
+                        <RefreshCw size={16} className="animate-spin" /> Memuat...
+                      </div>
+                    ) : resellers.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 text-sm">Belum ada reseller</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {resellers.map((r: any) => {
+                          const comm = Number(r.sell_price) - Number(r.base_price);
+                          return (
+                            <div key={r.id} className={`bg-slate-950 border rounded-2xl p-4 ${r.is_active ? 'border-slate-800' : 'border-red-900/40 opacity-60'}`}>
+                              <div className="flex items-start justify-between mb-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white font-bold">{r.name}</span>
+                                    {!r.is_active && <span className="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">Nonaktif</span>}
+                                  </div>
+                                  <p className="text-slate-500 text-xs">{r.email}</p>
+                                </div>
+                                <div className="flex gap-2 ml-3">
+                                  <button
+                                    onClick={() => { setEditReseller(r); setEditSellPrice(r.sell_price); setEditBasePrice(r.base_price); }}
+                                    className="p-2 bg-slate-800 hover:bg-violet-600/30 hover:text-violet-400 text-slate-400 rounded-xl transition-all cursor-pointer"
+                                    title="Edit Harga"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleResellerActive(r.slug, r.is_active)}
+                                    className={`p-2 rounded-xl transition-all cursor-pointer ${r.is_active ? 'bg-slate-800 hover:bg-red-600/20 hover:text-red-400 text-slate-400' : 'bg-green-600/20 text-green-400 hover:bg-green-600/30'}`}
+                                    title={r.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                                  >
+                                    <Ban size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                                <div className="bg-slate-900 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Terjual</p>
+                                  <p className="text-white font-bold text-lg">{r.total_sales}</p>
+                                </div>
+                                <div className="bg-slate-900 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Saldo</p>
+                                  <p className="text-amber-400 font-bold text-sm">Rp {Number(r.balance).toLocaleString('id-ID')}</p>
+                                </div>
+                                <div className="bg-slate-900 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Total Komisi</p>
+                                  <p className="text-emerald-400 font-bold text-sm">Rp {Number(r.total_earned).toLocaleString('id-ID')}</p>
+                                </div>
+                                <div className="bg-slate-900 rounded-xl px-3 py-2 text-center">
+                                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Komisi/Lisensi</p>
+                                  <p className="text-violet-400 font-bold text-sm">Rp {comm.toLocaleString('id-ID')}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-slate-900 rounded-xl px-3 py-2 text-xs text-slate-400 font-mono truncate">
+                                  /beli?ref={r.slug} · Jual Rp {Number(r.sell_price).toLocaleString('id-ID')} · Dasar Rp {Number(r.base_price).toLocaleString('id-ID')}
+                                </div>
+                                <button
+                                  onClick={() => copyResellerLink(r.slug)}
+                                  className="p-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-xl transition-all cursor-pointer shrink-0"
+                                  title="Salin Link"
+                                >
+                                  {copiedSlug === r.slug ? <Check size={14} /> : <Link2 size={14} />}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Withdrawal Reseller */}
+                  <div>
+                    <h3 className="text-white font-bold text-base mb-3 flex items-center gap-2">
+                      <Wallet className="text-emerald-400" size={16} /> Penarikan Komisi Reseller
+                    </h3>
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      {(['pending', 'approved', 'rejected'] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => { setResellerWdFilter(s); fetchResellerWithdrawals(s); }}
+                          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                            resellerWdFilter === s
+                              ? s === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                                : s === 'approved' ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                : 'bg-red-500/20 text-red-300 border-red-500/40'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                          }`}
+                        >
+                          {s === 'pending' ? '⏳ Menunggu' : s === 'approved' ? '✅ Disetujui' : '❌ Ditolak'}
+                        </button>
+                      ))}
+                      <button onClick={() => fetchResellerWithdrawals(resellerWdFilter)} className="ml-auto p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer">
+                        <RefreshCw size={13} />
+                      </button>
+                    </div>
+
+                    {resellerWdLoading ? (
+                      <div className="text-center py-8 text-slate-400 text-sm flex items-center justify-center gap-2"><RefreshCw size={16} className="animate-spin" /> Memuat...</div>
+                    ) : resellerWds.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 text-sm">Tidak ada permintaan</div>
+                    ) : (
+                      <div className="space-y-3">
+                        {resellerWds.map((w: any) => (
+                          <div key={w.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <p className="text-white font-bold">{w.resellers?.name || '-'}</p>
+                                <p className="text-slate-500 text-xs">{w.resellers?.email}</p>
+                              </div>
+                              <span className="text-emerald-400 font-black text-lg">Rp {Number(w.amount).toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="text-slate-400 text-xs mb-2">
+                              🏦 {w.bank_name} · {w.bank_account} · {w.bank_holder}
+                            </div>
+                            <p className="text-slate-600 text-[11px] mb-3">
+                              {new Date(w.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            {resellerWdFilter === 'pending' && (
+                              <div className="flex flex-col gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Catatan penolakan (opsional)"
+                                  value={resellerWdRejectNote[w.id] || ''}
+                                  onChange={e => setResellerWdRejectNote(prev => ({ ...prev, [w.id]: e.target.value }))}
+                                  className="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none focus:ring-1 focus:ring-violet-500/50"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleResellerWdAction(w.id, 'approved')}
+                                    disabled={resellerWdProcessingId === w.id}
+                                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+                                  >
+                                    <CheckCircle size={12} /> Setujui
+                                  </button>
+                                  <button
+                                    onClick={() => handleResellerWdAction(w.id, 'rejected')}
+                                    disabled={resellerWdProcessingId === w.id}
+                                    className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1"
+                                  >
+                                    <XCircle size={12} /> Tolak
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {resellerWdFilter !== 'pending' && w.note && (
+                              <p className="text-slate-500 text-xs italic">Catatan: {w.note}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -754,3 +1170,4 @@ export default function AdminDashboard() {
     </main>
   );
 }
+

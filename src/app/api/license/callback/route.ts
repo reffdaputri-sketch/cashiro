@@ -92,6 +92,56 @@ export async function POST(req: Request) {
 
       if (error) throw error;
 
+      // Catat penjualan reseller jika ada reseller_id
+      let resellerId: number | null = null;
+      let commissionAmount: number = 0;
+      let storeName2 = storeName;
+
+      if (additionalParam) {
+        try {
+          const parsed = JSON.parse(additionalParam);
+          resellerId = parsed.reseller_id ? Number(parsed.reseller_id) : null;
+          commissionAmount = parsed.commission ? Number(parsed.commission) : 0;
+          storeName2 = parsed.store_name || storeName;
+        } catch {}
+      }
+
+      if (resellerId && commissionAmount > 0) {
+        // Buat record penjualan reseller
+        const canWithdrawAt = new Date();
+        canWithdrawAt.setDate(canWithdrawAt.getDate() + 1); // 1 hari settlement
+
+        await supabase.from('reseller_sales').insert({
+          reseller_id: resellerId,
+          order_id: merchantOrderId,
+          buyer_email: customerEmail,
+          buyer_store_name: storeName2,
+          sale_price: Number(amount),
+          commission: commissionAmount,
+          can_withdraw_at: canWithdrawAt.toISOString(),
+        });
+
+        // Update balance, total_sales, total_earned reseller
+        const { data: currentReseller } = await supabase
+          .from('resellers')
+          .select('balance, total_sales, total_earned')
+          .eq('id', resellerId)
+          .single();
+
+        if (currentReseller) {
+          await supabase
+            .from('resellers')
+            .update({
+              balance: Number(currentReseller.balance) + commissionAmount,
+              total_sales: Number(currentReseller.total_sales) + 1,
+              total_earned: Number(currentReseller.total_earned) + commissionAmount,
+            })
+            .eq('id', resellerId);
+        }
+
+        console.log(`Komisi reseller ID ${resellerId}: Rp ${commissionAmount.toLocaleString('id-ID')}`);
+      }
+
       // In real production, send email to customer with the licenseKey here
 
       // Send WhatsApp message if wa_number exists
