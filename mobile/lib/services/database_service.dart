@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'kiosly.db');
     return await openDatabase(
       path,
-      version: 14,
+      version: 15,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -160,6 +160,13 @@ class DatabaseService {
     if (oldVersion < 14) {
       await db.execute('ALTER TABLE products ADD COLUMN weight INTEGER DEFAULT 0');
     }
+    if (oldVersion < 15) {
+      try {
+        await db.execute('ALTER TABLE products ADD COLUMN is_deleted INTEGER DEFAULT 0');
+      } catch (e) {
+        // ignore if already exists
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -177,7 +184,8 @@ class DatabaseService {
         min_stock INTEGER DEFAULT 5,
         is_synced INTEGER DEFAULT 0,
         is_online INTEGER DEFAULT 0,
-        weight INTEGER DEFAULT 0
+        weight INTEGER DEFAULT 0,
+        is_deleted INTEGER DEFAULT 0
       )
     ''');
 
@@ -294,9 +302,9 @@ class DatabaseService {
     return await db.insert(table, data);
   }
 
-  Future<List<Map<String, dynamic>>> getAll(String table, {String? orderBy}) async {
+  Future<List<Map<String, dynamic>>> getAll(String table, {String? orderBy, String? where, List<dynamic>? whereArgs}) async {
     final db = await database;
-    return await db.query(table, orderBy: orderBy);
+    return await db.query(table, orderBy: orderBy, where: where, whereArgs: whereArgs);
   }
 
   Future<Map<String, dynamic>?> getById(String table, int id) async {

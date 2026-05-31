@@ -6,7 +6,23 @@ class ReportService {
   Future<List<Map<String, dynamic>>> getStockReport() async {
     final db = await _db.database;
     // Get products with low stock (e.g., < 5) or just all products ordered by stock ASC
-    return await db.query('products', orderBy: 'stock ASC');
+    // Filter out soft-deleted products
+    return await db.query(
+      'products',
+      where: 'is_deleted = 0 OR is_deleted IS NULL',
+      orderBy: 'stock ASC',
+    );
+  }
+
+  /// Ambil daftar produk yang sudah dihapus (soft-delete) agar bisa
+  /// dihapus permanen dari menu stok.
+  Future<List<Map<String, dynamic>>> getDeletedProducts() async {
+    final db = await _db.database;
+    return await db.query(
+      'products',
+      where: 'is_deleted = 1',
+      orderBy: 'name ASC',
+    );
   }
 
   Future<Map<String, double>> getProfitLoss(DateTime start, DateTime end) async {

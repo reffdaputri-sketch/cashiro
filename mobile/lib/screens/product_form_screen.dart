@@ -146,43 +146,108 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     } 
   }
 
-  void _addVariation() {
+  /// Buka dialog untuk tambah variasi baru atau edit variasi yang sudah ada.
+  /// Jika [editIndex] tidak null, dialog berjalan dalam mode edit.
+  void _showVariationDialog({int? editIndex}) {
+    final isEdit = editIndex != null;
+    final existing = isEdit ? _variations[editIndex] : null;
+
+    final nameCtx  = TextEditingController(text: existing?.name  ?? '');
+    final priceCtx = TextEditingController(text: existing != null ? existing.price.toStringAsFixed(0) : '');
+    final stockCtx = TextEditingController(text: existing?.stock.toString() ?? '');
+
     showDialog(
       context: context,
-      builder: (context) {
-        final nameCtx = TextEditingController();
-        final priceCtx = TextEditingController();
-        final stockCtx = TextEditingController();
-        return AlertDialog(
-          title: const Text('Tambah Variasi'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: nameCtx, decoration: const InputDecoration(labelText: 'Nama (misal: Merah, XL)')),
-              TextField(controller: priceCtx, decoration: const InputDecoration(labelText: 'Harga Jual'), keyboardType: TextInputType.number),
-              TextField(controller: stockCtx, decoration: const InputDecoration(labelText: 'Stok'), keyboardType: TextInputType.number),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-            ElevatedButton(
-              onPressed: () {
-                if (nameCtx.text.isNotEmpty && priceCtx.text.isNotEmpty && stockCtx.text.isNotEmpty) {
-                  setState(() {
-                    _variations.add(ProductVariation(
-                      name: nameCtx.text,
-                      price: double.tryParse(priceCtx.text) ?? 0,
-                      stock: int.tryParse(stockCtx.text) ?? 0,
-                    ));
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Tambah'),
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(isEdit ? Icons.edit : Icons.add_circle_outline,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(isEdit ? 'Edit Variasi' : 'Tambah Variasi'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtx,
+              decoration: const InputDecoration(
+                labelText: 'Nama Variasi',
+                hintText: 'Contoh: Merah, XL, 250ml',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.label_outline),
+              ),
+              autofocus: !isEdit,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: priceCtx,
+                    decoration: const InputDecoration(
+                      labelText: 'Harga Jual',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.payments_outlined),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: stockCtx,
+                    decoration: const InputDecoration(
+                      labelText: 'Stok',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.inventory_2_outlined),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final name  = nameCtx.text.trim();
+              final price = double.tryParse(priceCtx.text);
+              final stock = int.tryParse(stockCtx.text);
+              if (name.isNotEmpty && price != null && stock != null) {
+                setState(() {
+                  final updated = ProductVariation(
+                    id: existing?.id,           // pertahankan ID asli saat edit
+                    productId: existing?.productId,
+                    name: name,
+                    price: price,
+                    stock: stock,
+                    sku: existing?.sku,
+                  );
+                  if (isEdit) {
+                    _variations[editIndex] = updated;
+                  } else {
+                    _variations.add(updated);
+                  }
+                });
+                Navigator.pop(dialogCtx);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Nama, harga, dan stok wajib diisi.')),
+                );
+              }
+            },
+            child: Text(isEdit ? 'Simpan' : 'Tambah'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -384,7 +449,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Variasi Produk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              TextButton.icon(onPressed: _addVariation, icon: const Icon(Icons.add), label: const Text('Tambah Variasi')),
+              TextButton.icon(onPressed: () => _showVariationDialog(), icon: const Icon(Icons.add), label: const Text('Tambah Variasi')),
             ],
           ),
           if (_variations.isEmpty)
@@ -402,17 +467,65 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               final v = entry.value;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.grey[200]!),
+                ),
+                elevation: 0,
                 child: ListTile(
                   dense: true,
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
                   title: Text(v.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Rp ${v.price.toStringAsFixed(0)} - Stok: ${v.stock}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _variations.removeAt(index);
-                      });
-                    },
+                  subtitle: Wrap(
+                    spacing: 8,
+                    children: [
+                      Chip(
+                        label: Text('Rp ${v.price.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 11)),
+                        avatar: const Icon(Icons.payments_outlined, size: 14),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: Colors.green[50],
+                      ),
+                      Chip(
+                        label: Text('Stok: ${v.stock}',
+                            style: const TextStyle(fontSize: 11)),
+                        avatar: const Icon(Icons.inventory_2_outlined, size: 14),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: Colors.blue[50],
+                      ),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                        tooltip: 'Edit variasi',
+                        onPressed: () => _showVariationDialog(editIndex: index),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                        tooltip: 'Hapus variasi',
+                        onPressed: () {
+                          setState(() {
+                            _variations.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );

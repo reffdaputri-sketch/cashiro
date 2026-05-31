@@ -16,7 +16,11 @@ class ProductProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
-    final productMaps = await _db.getAll('products', orderBy: 'id DESC');
+    final productMaps = await _db.getAll(
+      'products',
+      orderBy: 'id DESC',
+      where: 'is_deleted = 0 OR is_deleted IS NULL',
+    );
     final variationMaps = await _db.getAll('product_variations');
 
     _products = productMaps.map((pMap) {
@@ -87,9 +91,21 @@ class ProductProvider with ChangeNotifier {
   }
 
   Future<void> deleteProduct(int id) async {
-    await _db.delete('products', id); // Variations deleted by CASCADE
+    // Soft delete: tandai is_deleted=1 agar riwayat transaksi tetap aman
+    await _db.update('products', {'is_deleted': 1}, id);
+    DatabaseService.hasUnsyncedChanges = true;
     await fetchProducts();
   }
+
+  /// Hapus permanen dari database. Hanya boleh dilakukan pada produk yang
+  /// sudah di-soft-delete (is_deleted=1). Variasi produk otomatis terhapus
+  /// karena ON DELETE CASCADE.
+  Future<void> permanentlyDeleteProduct(int id) async {
+    await _db.delete('products', id);
+    DatabaseService.hasUnsyncedChanges = true;
+    await fetchProducts();
+  }
+
   Future<void> updateStock(int id, int newStock) async {
     await _db.update('products', {'stock': newStock}, id);
     await fetchProducts();

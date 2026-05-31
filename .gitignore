@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# WhatsApp Gateway session files (auto-generated, tidak perlu di-repo)
+wa-getway/session/
+wa-getway/*.zip
