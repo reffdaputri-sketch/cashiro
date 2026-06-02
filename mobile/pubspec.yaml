@@ -55,6 +55,7 @@ dependencies:
   blue_thermal_printer: ^1.2.3
   permission_handler: ^11.3.1
   qr_flutter: ^4.1.0
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

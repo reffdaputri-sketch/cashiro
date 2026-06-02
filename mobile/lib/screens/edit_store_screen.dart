@@ -40,6 +40,10 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   bool _isUploadingBanners = false;
   bool _isLocalCourierActive = false;
   late TextEditingController _localCourierFeeController;
+  double? _storeLat;
+  double? _storeLng;
+  late TextEditingController _maxDeliveryRadiusController;
+  bool _isFetchingLocation = false;
 
   @override
   void initState() {
@@ -57,6 +61,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _currentImagePath = info['imagePath'];
     _isLocalCourierActive = info['isLocalCourierActive'] == 'true';
     _localCourierFeeController = TextEditingController(text: info['localCourierFee'] ?? '0.0');
+    _storeLat = double.tryParse(info['storeLat'] ?? '');
+    _storeLng = double.tryParse(info['storeLng'] ?? '');
+    _maxDeliveryRadiusController = TextEditingController(text: info['maxDeliveryRadius'] ?? '0.0');
     
     final cityIdStr = info['cityId'];
     if (cityIdStr != null && cityIdStr.isNotEmpty) {
@@ -134,6 +141,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _bankAccountNameController.dispose();
     _qrisPayloadController.dispose();
     _localCourierFeeController.dispose();
+    _maxDeliveryRadiusController.dispose();
     super.dispose();
   }
 
@@ -197,6 +205,9 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         banners: finalBanners,
         isLocalCourierActive: _isLocalCourierActive,
         localCourierFee: double.tryParse(_localCourierFeeController.text) ?? 0.0,
+        storeLat: _storeLat,
+        storeLng: _storeLng,
+        maxDeliveryRadius: double.tryParse(_maxDeliveryRadiusController.text) ?? 0.0,
       );
       if (mounted) {
         setState(() => _isUploadingBanners = false);
@@ -204,6 +215,46 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
           const SnackBar(content: Text('Profil toko berhasil diperbarui')),
         );
         Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Layanan lokasi tidak aktif.');
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Izin lokasi ditolak.');
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Izin lokasi ditolak secara permanen.');
+      }
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _storeLat = position.latitude;
+        _storeLng = position.longitude;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lokasi berhasil didapatkan!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mendapatkan lokasi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isFetchingLocation = false);
       }
     }
   }
@@ -456,46 +507,6 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                 validator: (value) => value!.isEmpty ? 'Harap isi alamat' : null,
               ),
               const SizedBox(height: 16),
-              const Text('Lokasi Pengiriman (Untuk Ongkir)', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              if (_isLoadingLocation && _provinces.isEmpty)
-                const Center(child: CircularProgressIndicator())
-              else
-                DropdownButtonFormField<String>(
-                  value: _selectedProvinceId,
-                  decoration: const InputDecoration(labelText: 'Provinsi', border: OutlineInputBorder()),
-                  items: _provinces.map((p) => DropdownMenuItem<String>(
-                    value: p['province_id'].toString(),
-                    child: Text(p['province']),
-                  )).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedProvinceId = val);
-                      _fetchCities(val);
-                    }
-                  },
-                ),
-              const SizedBox(height: 16),
-              if (_isLoadingLocation && _provinces.isNotEmpty)
-                const Center(child: CircularProgressIndicator())
-              else if (_cities.isNotEmpty || _selectedCityId != null)
-                DropdownButtonFormField<String>(
-                  value: _cities.any((c) => c['city_id'].toString() == _selectedCityId) ? _selectedCityId : null,
-                  decoration: const InputDecoration(labelText: 'Kota / Kabupaten', border: OutlineInputBorder()),
-                  items: _cities.map((c) => DropdownMenuItem<String>(
-                    value: c['city_id'].toString(),
-                    child: Text("${c['type']} ${c['city_name']}"),
-                  )).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedCityId = val);
-                    }
-                  },
-                  hint: _selectedCityId != null && _cities.isEmpty 
-                      ? Text('Kota ID: $_selectedCityId (Pilih ulang provinsi)') 
-                      : null,
-                ),
-              const SizedBox(height: 24),
               const Text('Pengaturan Kurir Lokal', style: TextStyle(fontWeight: FontWeight.bold)),
               SwitchListTile(
                 title: const Text('Aktifkan Kurir Lokal'),
@@ -508,13 +519,75 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                 },
                 contentPadding: EdgeInsets.zero,
               ),
-              if (_isLocalCourierActive)
+              if (_isLocalCourierActive) ...[
                 TextFormField(
                   controller: _localCourierFeeController,
                   decoration: const InputDecoration(labelText: 'Biaya Kurir Lokal (Rp)', border: OutlineInputBorder()),
                   keyboardType: TextInputType.number,
                 ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _maxDeliveryRadiusController,
+                  decoration: const InputDecoration(labelText: 'Radius Pengiriman Maksimal (Km)', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _isFetchingLocation ? null : _getCurrentLocation,
+                  icon: _isFetchingLocation 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.location_on),
+                  label: Text(_isFetchingLocation ? 'Mengambil Lokasi...' : 'Ambil Lokasi Toko (GPS)'),
+                ),
+                if (_storeLat != null && _storeLng != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('Lokasi tersimpan: $_storeLat, $_storeLng', style: const TextStyle(color: Colors.green, fontSize: 12)),
+                  ),
+                const SizedBox(height: 24),
+              ],
+              if (!_isLocalCourierActive) ...[
+                const Text('Lokasi Pengiriman (Untuk Ongkir)', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_isLoadingLocation && _provinces.isEmpty)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  DropdownButtonFormField<String>(
+                    value: _selectedProvinceId,
+                    decoration: const InputDecoration(labelText: 'Provinsi', border: OutlineInputBorder()),
+                    items: _provinces.map((p) => DropdownMenuItem<String>(
+                      value: p['province_id'].toString(),
+                      child: Text(p['province']),
+                    )).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedProvinceId = val);
+                        _fetchCities(val);
+                      }
+                    },
+                  ),
+                const SizedBox(height: 16),
+                if (_isLoadingLocation && _provinces.isNotEmpty)
+                  const Center(child: CircularProgressIndicator())
+                else if (_cities.isNotEmpty || _selectedCityId != null)
+                  DropdownButtonFormField<String>(
+                    value: _cities.any((c) => c['city_id'].toString() == _selectedCityId) ? _selectedCityId : null,
+                    decoration: const InputDecoration(labelText: 'Kota / Kabupaten', border: OutlineInputBorder()),
+                    items: _cities.map((c) => DropdownMenuItem<String>(
+                      value: c['city_id'].toString(),
+                      child: Text("${c['type']} ${c['city_name']}"),
+                    )).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedCityId = val);
+                      }
+                    },
+                    hint: _selectedCityId != null && _cities.isEmpty 
+                        ? Text('Kota ID: $_selectedCityId (Pilih ulang provinsi)') 
+                        : null,
+                  ),
+                const SizedBox(height: 24),
+              ],
               const Text('Informasi Rekening Bank (Untuk Pembayaran Online)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(

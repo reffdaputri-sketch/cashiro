@@ -8,7 +8,7 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { store_id, license_key, store_name, owner_name, phone, address, pin, city_id, bank_name, bank_account, bank_account_name, qris_payload, banners, is_local_courier_active, local_courier_fee } = await req.json();
+    const { store_id, license_key, store_name, owner_name, phone, address, pin, city_id, bank_name, bank_account, bank_account_name, qris_payload, banners, is_local_courier_active, local_courier_fee, store_lat, store_lng, max_delivery_radius } = await req.json();
 
     if (!store_id || !license_key) {
       return NextResponse.json({ error: 'Store ID dan License Key wajib diisi' }, { status: 400 });
@@ -41,6 +41,9 @@ export async function POST(req: Request) {
     if (banners !== undefined) updateData.banners = banners;
     if (is_local_courier_active !== undefined) updateData.is_local_courier_active = is_local_courier_active;
     if (local_courier_fee !== undefined) updateData.local_courier_fee = local_courier_fee;
+    if (store_lat !== undefined) updateData.store_lat = store_lat;
+    if (store_lng !== undefined) updateData.store_lng = store_lng;
+    if (max_delivery_radius !== undefined) updateData.max_delivery_radius = max_delivery_radius;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: true, message: 'Tidak ada perubahan yang dikirim' });

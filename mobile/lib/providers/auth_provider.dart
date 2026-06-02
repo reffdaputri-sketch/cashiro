@@ -107,8 +107,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee}) async {
-    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners, isLocalCourierActive: isLocalCourierActive, localCourierFee: localCourierFee);
+  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius}) async {
+    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners, isLocalCourierActive: isLocalCourierActive, localCourierFee: localCourierFee, storeLat: storeLat, storeLng: storeLng, maxDeliveryRadius: maxDeliveryRadius);
     await checkRegistration();
     
     // Update in cloud if online (license key is not mock)
@@ -132,6 +132,9 @@ class AuthProvider with ChangeNotifier {
           banners: banners,
           isLocalCourierActive: isLocalCourierActive,
           localCourierFee: localCourierFee,
+          storeLat: storeLat,
+          storeLng: storeLng,
+          maxDeliveryRadius: maxDeliveryRadius,
         );
       } catch (e) {
         debugPrint('Cloud profile update failed: $e');

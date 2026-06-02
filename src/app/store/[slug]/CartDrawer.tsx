@@ -13,6 +13,9 @@ interface CartDrawerProps {
   qrisPayload: string | null;
   isLocalCourierActive?: boolean;
   localCourierFee?: number;
+  storeLat?: number | null;
+  storeLng?: number | null;
+  maxDeliveryRadius?: number;
 }
 
 import { QRCodeCanvas } from 'qrcode.react';
@@ -22,7 +25,20 @@ function formatRupiah(num: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 }
 
-export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload, isLocalCourierActive = false, localCourierFee = 0 }: CartDrawerProps) {
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  const d = R * c;
+  return d;
+}
+
+export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload, isLocalCourierActive = false, localCourierFee = 0, storeLat, storeLng, maxDeliveryRadius }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
@@ -49,6 +65,9 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
   const [courierName, setCourierName] = useState('');
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [loadingShipping, setLoadingShipping] = useState(false);
+  const [buyerLat, setBuyerLat] = useState<number | null>(null);
+  const [buyerLng, setBuyerLng] = useState<number | null>(null);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
 
   const totalWeight = items.reduce((sum, item) => sum + (item.weight || 0) * item.qty, 0);
 
@@ -135,6 +154,33 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
     }
   };
 
+  const getBuyerLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Browser Anda tidak mendukung deteksi lokasi (GPS).');
+      return;
+    }
+    setLoadingLocation(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setBuyerLat(position.coords.latitude);
+        setBuyerLng(position.coords.longitude);
+        setLoadingLocation(false);
+        if (storeLat && storeLng) {
+          const dist = calculateDistance(storeLat, storeLng, position.coords.latitude, position.coords.longitude);
+          setDistanceKm(dist);
+          if (maxDeliveryRadius && maxDeliveryRadius > 0 && dist > maxDeliveryRadius) {
+            setError(`Maaf, lokasi Anda (${dist.toFixed(1)} km) berada di luar jangkauan kurir lokal toko ini (Maks ${maxDeliveryRadius} km).`);
+          }
+        }
+      },
+      (err) => {
+        setLoadingLocation(false);
+        setError('Gagal mendapatkan lokasi. Pastikan izin GPS diaktifkan.');
+      }
+    );
+  };
+
   const handleOrder = async () => {
     if (!name.trim()) {
       setError('Nama Pemesan wajib diisi.');
@@ -156,6 +202,17 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
       if (!selectedDistrictId) {
         setError('Silakan pilih Kecamatan.');
         return;
+      }
+    } else {
+      if (maxDeliveryRadius && maxDeliveryRadius > 0) {
+        if (buyerLat === null || buyerLng === null) {
+          setError('Silakan Ambil Lokasi Pengiriman (GPS) Anda terlebih dahulu karena toko ini membatasi radius pengiriman.');
+          return;
+        }
+        if (distanceKm !== null && distanceKm > maxDeliveryRadius) {
+          setError(`Lokasi Anda (${distanceKm.toFixed(1)} km) berada di luar jangkauan kurir lokal (Maks ${maxDeliveryRadius} km).`);
+          return;
+        }
       }
     }
     if (!address.trim()) {
@@ -451,6 +508,26 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
                     <span className="courier-price">{formatRupiah(localCourierFee)}</span>
                   </label>
                 </div>
+                {maxDeliveryRadius !== undefined && maxDeliveryRadius > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <p style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
+                      Toko ini menerapkan batas jarak pengiriman maksimal {maxDeliveryRadius} km.
+                    </p>
+                    <button 
+                      className="secondary-btn" 
+                      onClick={getBuyerLocation}
+                      style={{ padding: '8px 12px', fontSize: 13, width: 'auto' }}
+                      disabled={loadingLocation}
+                    >
+                      {loadingLocation ? 'Mendeteksi...' : '📍 Ambil Lokasi Saya (GPS)'}
+                    </button>
+                    {distanceKm !== null && (
+                      <p style={{ fontSize: 13, marginTop: 8, color: distanceKm > maxDeliveryRadius ? '#dc2626' : '#059669', fontWeight: 'bold' }}>
+                        Jarak Anda: {distanceKm.toFixed(1)} km {distanceKm > maxDeliveryRadius ? '(Di Luar Jangkauan)' : '(Dalam Jangkauan)'}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

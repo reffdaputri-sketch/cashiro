@@ -30,6 +30,9 @@ interface SellerData {
     banners: string[];
     is_local_courier_active: boolean;
     local_courier_fee: number;
+    store_lat: number | null;
+    store_lng: number | null;
+    max_delivery_radius: number;
   };
   products: Product[];
 }
@@ -210,7 +213,7 @@ function StoreContent({ data, slug }: { data: SellerData; slug: string }) {
       )}
 
       {/* Cart Drawer */}
-      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} bankName={data.seller.bank_name} bankAccount={data.seller.bank_account} bankAccountName={data.seller.bank_account_name} qrisPayload={data.seller.qris_payload} isLocalCourierActive={data.seller.is_local_courier_active} localCourierFee={data.seller.local_courier_fee} />}
+      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} bankName={data.seller.bank_name} bankAccount={data.seller.bank_account} bankAccountName={data.seller.bank_account_name} qrisPayload={data.seller.qris_payload} isLocalCourierActive={data.seller.is_local_courier_active} localCourierFee={data.seller.local_courier_fee} storeLat={data.seller.store_lat} storeLng={data.seller.store_lng} maxDeliveryRadius={data.seller.max_delivery_radius} />}
 
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">

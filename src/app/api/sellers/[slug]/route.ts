@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
     const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name, qris_payload, banners, is_local_courier_active, local_courier_fee)')
+      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name, qris_payload, banners, is_local_courier_active, local_courier_fee, store_lat, store_lng, max_delivery_radius)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
@@ -41,6 +41,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
         banners: Array.isArray(storeData.banners) ? storeData.banners : (typeof storeData.banners === 'string' ? (() => { try { return JSON.parse(storeData.banners); } catch { return []; } })() : []),
         is_local_courier_active: storeData.is_local_courier_active || false,
         local_courier_fee: storeData.local_courier_fee || 0,
+        store_lat: storeData.store_lat || null,
+        store_lng: storeData.store_lng || null,
+        max_delivery_radius: storeData.max_delivery_radius || 0,
       },
       products: products || [],
     });

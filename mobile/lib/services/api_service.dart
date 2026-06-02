@@ -242,6 +242,9 @@ class ApiService {
     List<String>? banners,
     bool? isLocalCourierActive,
     double? localCourierFee,
+    double? storeLat,
+    double? storeLng,
+    double? maxDeliveryRadius,
   }) async {
     try {
       final response = await http.post(
@@ -263,6 +266,9 @@ class ApiService {
           if (banners != null) 'banners': banners,
           if (isLocalCourierActive != null) 'is_local_courier_active': isLocalCourierActive,
           if (localCourierFee != null) 'local_courier_fee': localCourierFee,
+          if (storeLat != null) 'store_lat': storeLat,
+          if (storeLng != null) 'store_lng': storeLng,
+          if (maxDeliveryRadius != null) 'max_delivery_radius': maxDeliveryRadius,
         }),
       );
 
