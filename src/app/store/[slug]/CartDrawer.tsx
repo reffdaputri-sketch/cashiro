@@ -10,20 +10,24 @@ interface CartDrawerProps {
   bankName: string;
   bankAccount: string;
   bankAccountName: string;
+  qrisPayload: string | null;
 }
+
+import { QRCodeCanvas } from 'qrcode.react';
+import { generateDynamicQris } from '@/lib/qrisHelper';
 
 function formatRupiah(num: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 }
 
-export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName }: CartDrawerProps) {
+export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'manual' | 'transfer'>('manual');
+  const [paymentMethod, setPaymentMethod] = useState<'manual' | 'transfer' | 'qris'>('manual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [orderId, setOrderId] = useState<number | null>(null);
@@ -195,6 +199,10 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
           ? '62' + data.seller_phone.substring(1) 
           : data.seller_phone.replace(/[^0-9]/g, '');
         
+        let paymentStr = 'Manual / COD';
+        if (paymentMethod === 'transfer') paymentStr = 'Transfer Bank';
+        if (paymentMethod === 'qris') paymentStr = 'QRIS';
+
         const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
 Nama: ${name || 'Anonim'}
 No. HP: ${phone || '-'}
@@ -206,7 +214,7 @@ ${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
 Catatan: ${notes || '-'}
 Ongkos Kirim: ${shippingCost > 0 ? `${formatRupiah(shippingCost)} (${courierName})` : '-'}
 *Grand Total: ${formatRupiah(total + shippingCost)}*
-Metode Pembayaran: ${paymentMethod === 'transfer' ? 'Transfer Bank' : 'Manual / COD'}
+Metode Pembayaran: ${paymentStr}
 
 ${paymentMethod === 'transfer' && data.seller_bank_name ? `*Rekening Tujuan Transfer:*
 Bank: ${data.seller_bank_name}
@@ -217,7 +225,12 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
         
         setWaLink(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(waMessage)}`);
       }
-      setStep('success');
+      
+      if (paymentMethod === 'qris' && qrisPayload) {
+        setStep('qris');
+      } else {
+        setStep('success');
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -426,6 +439,14 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
               >
                 🏦 Transfer Bank
               </button>
+              {qrisPayload && (
+                <button
+                  className={`payment-option ${paymentMethod === 'qris' ? 'active' : ''}`}
+                  onClick={() => setPaymentMethod('qris')}
+                >
+                  📱 QRIS
+                </button>
+              )}
             </div>
 
             {paymentMethod === 'transfer' && (bankName || bankAccount) && (
@@ -492,11 +513,39 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             
             {waLink && (
               <a href={waLink} target="_blank" rel="noopener noreferrer" className="primary-btn" style={{ textDecoration: 'none', display: 'block', margin: '20px 0' }}>
-                💬 Lanjutkan ke WhatsApp
+                💬 Konfirmasi ke WhatsApp
               </a>
             )}
             <button className={waLink ? "secondary-btn" : "primary-btn"} onClick={onClose} style={{ width: '100%' }}>
               Kembali ke Toko
+            </button>
+          </div>
+        )}
+
+        {/* QRIS */}
+        {step === 'qris' && qrisPayload && (
+          <div className="drawer-body text-center">
+            <h3>Scan untuk Membayar</h3>
+            <div style={{ margin: '20px auto', padding: '16px', background: 'white', display: 'inline-block', borderRadius: '16px' }}>
+              <QRCodeCanvas 
+                value={generateDynamicQris(qrisPayload, total + shippingCost)} 
+                size={220} 
+                level={"H"} 
+              />
+            </div>
+            <h2 style={{ color: '#006d77', fontSize: '28px', marginBottom: '8px' }}>
+              {formatRupiah(total + shippingCost)}
+            </h2>
+            <p className="qris-desc">Silakan scan kode QRIS ini menggunakan aplikasi E-Wallet (GoPay, OVO, Dana) atau Mobile Banking Anda.</p>
+            <p className="order-id-text" style={{ marginTop: '16px' }}>ID Pesanan: #{orderId}</p>
+            
+            {waLink && (
+              <a href={waLink} target="_blank" rel="noopener noreferrer" className="primary-btn" style={{ textDecoration: 'none', display: 'block', margin: '20px 0' }}>
+                💬 Konfirmasi Pembayaran
+              </a>
+            )}
+            <button className={waLink ? "secondary-btn" : "primary-btn"} onClick={() => setStep('success')} style={{ width: '100%' }}>
+              Saya Sudah Bayar
             </button>
           </div>
         )}

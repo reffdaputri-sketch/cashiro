@@ -79,6 +79,7 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
           storeId: storeId,
           licenseKey: licenseKey,
           email: email,
+          qrisPayload: storeData['qris_payload'],
         );
 
         ScaffoldMessenger.of(context).showSnackBar(

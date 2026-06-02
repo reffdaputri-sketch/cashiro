@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
     const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name)')
+      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name, qris_payload)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
@@ -37,6 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
         bank_name: storeData.bank_name || '',
         bank_account: storeData.bank_account || '',
         bank_account_name: storeData.bank_account_name || '',
+        qris_payload: storeData.qris_payload || null,
       },
       products: products || [],
     });

@@ -13,6 +13,7 @@ interface SellerData {
     bank_name: string;
     bank_account: string;
     bank_account_name: string;
+    qris_payload: string | null;
   };
   products: {
     id: number;

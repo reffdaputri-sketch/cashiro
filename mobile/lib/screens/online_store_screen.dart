@@ -7,6 +7,8 @@ import 'package:mobile/services/api_service.dart';
 import 'package:mobile/screens/master_data_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/services/database_service.dart';
+import 'package:mobile/providers/shift_provider.dart';
 
 class OnlineStoreScreen extends StatefulWidget {
   const OnlineStoreScreen({super.key});
@@ -32,6 +34,15 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    
+    // Auto-refresh when switching tabs (e.g. going to Products tab)
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _slug != null && !_loading) {
+        // Refresh silently when landing on a tab
+        _refreshData();
+      }
+    });
+
     _initSeller();
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!_loading && _slug != null && mounted) {
@@ -579,6 +590,56 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
 
         try {
           await _api.updateSellerOrderStatus(slug: _slug!, orderId: o['id'], status: value);
+          
+          if (value == 'paid') {
+            final dbService = DatabaseService();
+            final db = await dbService.database;
+            
+            final existing = await db.query('transactions', where: 'payment_method = ?', whereArgs: ['Toko Online #${o['id']}']);
+            if (existing.isEmpty) {
+              await db.transaction((txn) async {
+                 final total = (o['total_amount'] as num).toDouble();
+                 int? shiftId;
+                 if (ctx.mounted) {
+                   shiftId = Provider.of<ShiftProvider>(ctx, listen: false).activeShift?['id'] as int?;
+                 }
+                 
+                 final transactionId = await txn.insert('transactions', {
+                   'total_amount': total,
+                   'paid_amount': total,
+                   'created_at': DateTime.now().toIso8601String(),
+                   'payment_method': 'Toko Online #${o['id']}',
+                   'shift_id': shiftId,
+                   'is_synced': 0
+                 });
+                 
+                 if (o['items'] is List) {
+                   for (var item in o['items']) {
+                      final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [item['product_id']]);
+                      double cost = 0.0;
+                      if (productRows.isNotEmpty) {
+                        cost = (productRows.first['cost_price'] as num?)?.toDouble() ?? 0.0;
+                      }
+                      
+                      await txn.insert('transaction_items', {
+                         'transaction_id': transactionId,
+                         'product_id': item['product_id'],
+                         'quantity': item['qty'],
+                         'price_at_sale': (item['price'] as num?)?.toDouble() ?? 0.0,
+                         'cost_at_sale': cost,
+                         'is_synced': 0
+                      });
+                   }
+                 }
+              });
+              DatabaseService.hasUnsyncedChanges = true;
+              if (ctx.mounted) {
+                Provider.of<ShiftProvider>(ctx, listen: false).checkActiveShift();
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Pesanan otomatis masuk ke Laporan POS!'), backgroundColor: Colors.green));
+              }
+            }
+          }
+          
           // refresh silently in background
           _refreshData();
         } catch (e) {

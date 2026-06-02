@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:mobile/services/receipt_service.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/providers/shift_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:mobile/utils/qris_helper.dart';
 
 class CartScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -366,11 +368,15 @@ class _CartScreenState extends State<CartScreen> {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -433,6 +439,7 @@ class _CartScreenState extends State<CartScreen> {
             _buildPaymentOption(context, 'Kartu Debit', Icons.credit_card, cart),
             _buildPaymentOption(context, 'Kartu Kredit', Icons.credit_card, cart),
             _buildPaymentOption(context, 'Hutang / Tempo', Icons.history, cart),
+            _buildPaymentOption(context, 'Belum Bayar (Simpan)', Icons.save, cart),
             
             const SizedBox(height: 16),
             SizedBox(
@@ -456,6 +463,7 @@ class _CartScreenState extends State<CartScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -474,14 +482,85 @@ class _CartScreenState extends State<CartScreen> {
         title: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: () async {
-          Navigator.pop(context); // Close selection
-          if (label == 'Tunai') {
-            await _showCheckoutDialog(context, cart);
+          if (label == 'Hutang / Tempo') {
+            if (_nameController.text.trim().isEmpty) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nama Pelanggan wajib diisi untuk Hutang/Tempo!'), backgroundColor: Colors.red));
+               return; // Don't close bottom sheet, force user to type name
+            }
+            Navigator.pop(context);
+            await _processPayment(context, cart, 0, label);
+          } else if (label == 'QRIS') {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            final qrisPayload = auth.storeInfo['qrisPayload'];
+            if (qrisPayload != null && qrisPayload.isNotEmpty) {
+              Navigator.pop(context);
+              await _showQrisDialog(context, cart, qrisPayload);
+            } else {
+              Navigator.pop(context);
+              await _processPayment(context, cart, cart.totalAmount, label);
+            }
           } else {
-            // For non-cash, assume paid in full
-            await _processPayment(context, cart, cart.totalAmount, label);
+            Navigator.pop(context); // Close selection
+            if (label == 'Tunai') {
+              await _showCheckoutDialog(context, cart);
+            } else if (label == 'Belum Bayar (Simpan)') {
+              await _processPayment(context, cart, 0, 'Belum Bayar');
+            } else {
+              // For non-cash, assume paid in full
+              await _processPayment(context, cart, cart.totalAmount, label);
+            }
           }
         },
+      ),
+    );
+  }
+
+  Future<void> _showQrisDialog(BuildContext context, CartProvider cart, String staticQris) async {
+    final dynamicQris = QrisHelper.generateDynamicQris(staticQris, cart.totalAmount);
+    
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Scan QRIS untuk Membayar', textAlign: TextAlign.center),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.white,
+              child: QrImageView(
+                data: dynamicQris,
+                version: QrVersions.auto,
+                size: 250.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(cart.totalAmount),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Minta pelanggan scan QRIS ini dengan aplikasi E-Wallet atau M-Banking mereka.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _processPayment(context, cart, cart.totalAmount, 'QRIS');
+            },
+            child: const Text('Sudah Dibayar'),
+          ),
+        ],
       ),
     );
   }
@@ -511,8 +590,13 @@ class _CartScreenState extends State<CartScreen> {
       final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
       final transactionId = await cart.checkout(paidAmount, customerId: customerId, paymentMethod: method, shiftId: shiftId);
       if (context.mounted && transactionId != null) {
-        // Show success / receipt flow
-        _showReceiptDialog(context, transactionId, total, paidAmount, paidAmount - total, items, storeInfo, paymentMethod: method);
+        if (method == 'Belum Bayar') {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan berhasil disimpan (Belum Bayar)!'), backgroundColor: Colors.orange));
+          if (!widget.isEmbedded) Navigator.pop(context);
+        } else {
+          // Show success / receipt flow
+          _showReceiptDialog(context, transactionId, total, paidAmount, paidAmount - total, items, storeInfo, paymentMethod: method);
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -716,7 +800,10 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               Icon(Icons.check_circle, color: primaryColor, size: 60),
               const SizedBox(height: 10),
-              Text('Kembalian: Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(kembalian)}'),
+              if (kembalian < 0)
+                Text('Sisa Tagihan (Hutang): Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(kembalian.abs())}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+              else
+                Text('Kembalian: Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(kembalian)}'),
             ],
           ),
           actions: [

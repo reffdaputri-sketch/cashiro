@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/screens/staff_list_screen.dart';
-import 'package:mobile/screens/edit_store_screen.dart';
 import 'package:mobile/screens/report_screen.dart';
-import 'package:mobile/screens/theme_settings_screen.dart';
-import 'package:mobile/screens/referral_management_screen.dart';
 import 'package:mobile/screens/history_screen.dart';
+import 'package:mobile/screens/master_data_screen.dart';
+import 'package:mobile/screens/stock_report_screen.dart';
+import 'package:mobile/screens/online_store_screen.dart';
 import 'package:mobile/screens/cash_flow_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
-import 'package:mobile/screens/printer_settings_screen.dart';
-
-import 'package:mobile/screens/stock_report_screen.dart';
-import 'package:mobile/screens/master_data_screen.dart';
-import 'dart:async';
-import 'package:mobile/services/sync_service.dart';
-import 'package:mobile/screens/online_store_screen.dart';
-import 'package:mobile/services/api_service.dart';
+import 'package:mobile/screens/referral_management_screen.dart';
+import 'package:mobile/screens/edit_store_screen.dart';
+import 'package:mobile/services/database_service.dart';
+import 'package:mobile/services/report_service.dart';
 import 'package:intl/intl.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -27,503 +24,672 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late PageController _pageController;
-  int _currentPage = 0;
-  Timer? _timer;
-  final ApiService _api = ApiService();
-  double? _referralBalance;
-  bool _isLoadingReferral = false;
+  final Color primaryGreen = const Color(0xFF0F5A33);
+  final Color bgLight = const Color(0xFFF4F9F6);
+  final DatabaseService _db = DatabaseService();
+  final ReportService _reportService = ReportService();
 
-  List<Map<String, dynamic>> _getBannerData(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
-    return [
-      {
-        'title': 'Kelola Toko Lebih Mudah',
-        'subtitle': 'Pantau stok & penjualan secara realtime',
-        'color': primaryColor,
-        'icon': Icons.insights,
-      },
-      {
-        'title': 'Laporan Otomatis',
-        'subtitle': 'Cetak laporan laba rugi dalam satu klik',
-        'color': Colors.blue[800],
-        'icon': Icons.description,
-      },
-      {
-        'title': 'Bantuan Cashiro',
-        'subtitle': 'Butuh panduan? Hubungi tim support kami',
-        'color': Colors.orange[800],
-        'icon': Icons.support_agent,
-      },
-    ];
-  }
+  List<Map<String, dynamic>> _recentTransactions = [];
+  List<Map<String, dynamic>> _lowStockProducts = [];
+  bool _isLoadingData = true;
+
+  double _todaySales = 0;
+  int _todayTxCount = 0;
+  double _todayProfit = 0;
+  int _totalStock = 0;
+  List<Map<String, dynamic>> _chartData = [];
+  int _chartDays = 7;
+  String _metricPeriod = 'Hari Ini';
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 0);
-    _startAutoScroll();
-    _fetchReferralBalance();
+    _loadDashboardData();
   }
 
-  Future<void> _fetchReferralBalance() async {
-    setState(() => _isLoadingReferral = true);
+  Future<void> _loadDashboardData() async {
     try {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      final storeId = auth.storeInfo['storeId'] ?? '';
-      if (storeId.isNotEmpty && storeId != 'DEMO-STORE-ID') {
-        final actResult = await _api.activateSeller(storeId);
-        final slug = actResult['slug'];
-        if (slug != null && slug.isNotEmpty) {
-          final refResult = await _api.getSellerReferrals(slug);
-          if (mounted) {
-            setState(() {
-              _referralBalance = (refResult['balance'] ?? 0).toDouble();
-            });
-          }
-        }
+      final txns = await _db.getAll('transactions', orderBy: 'id DESC');
+      final prods = await _db.getAll('products', where: 'is_deleted = 0 OR is_deleted IS NULL');
+      
+      DateTime now = DateTime.now();
+      DateTime startOfDay = DateTime(now.year, now.month, now.day);
+      DateTime endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      
+      DateTime startMetricDate;
+      DateTime endMetricDate;
+
+      if (_metricPeriod == 'Hari Ini') {
+        startMetricDate = startOfDay;
+        endMetricDate = endOfDay;
+      } else if (_metricPeriod == 'Bulan Ini') {
+        startMetricDate = DateTime(now.year, now.month, 1);
+        endMetricDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      } else {
+        startMetricDate = DateTime(now.year, 1, 1);
+        endMetricDate = DateTime(now.year, 12, 31, 23, 59, 59);
+      }
+      
+      DateTime startChartDays = startOfDay.subtract(Duration(days: _chartDays - 1));
+      
+      final profitLossToday = await _reportService.getProfitLoss(startMetricDate, endMetricDate);
+      
+      final dbInstance = await _db.database;
+      final txCountResult = await dbInstance.rawQuery("SELECT COUNT(*) as cnt FROM transactions WHERE created_at BETWEEN ? AND ?", [startMetricDate.toIso8601String(), endMetricDate.toIso8601String()]);
+      int txCount = (txCountResult.first['cnt'] as num?)?.toInt() ?? 0;
+
+      final stockResult = await dbInstance.rawQuery("SELECT SUM(stock) as total_stock FROM products WHERE is_deleted = 0 OR is_deleted IS NULL");
+      int totalStock = (stockResult.first['total_stock'] as num?)?.toInt() ?? 0;
+      
+      final chartData = await _reportService.getDailyProfitLoss(startChartDays, endOfDay);
+      
+      final lowStock = prods.where((p) => (p['stock'] as int) > 0 && (p['stock'] as int) <= 10).toList();
+      lowStock.sort((a, b) => (a['stock'] as int).compareTo(b['stock'] as int));
+
+      if (mounted) {
+        setState(() {
+          _recentTransactions = txns.take(5).toList();
+          _lowStockProducts = lowStock.take(5).toList();
+          
+          _todaySales = profitLossToday['revenue'] ?? 0;
+          _todayProfit = profitLossToday['netProfit'] ?? 0;
+          _todayTxCount = txCount;
+          _totalStock = totalStock;
+          _chartData = chartData;
+          
+          _isLoadingData = false;
+        });
       }
     } catch (e) {
-      // Ignore error gracefully
-    } finally {
       if (mounted) {
-        setState(() => _isLoadingReferral = false);
+        setState(() => _isLoadingData = false);
       }
     }
   }
 
-  void _startAutoScroll() {
-    _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
-      final bannerCount = 3; // Fixed for now
-      if (_currentPage < bannerCount - 1) {
-        _currentPage++;
-      } else {
-        _currentPage = 0;
-      }
-
-      if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bannerData = _getBannerData(context);
-    final primaryColor = Theme.of(context).primaryColor;
     final auth = Provider.of<AuthProvider>(context);
+    final userName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Andi';
+    final storeName = auth.storeInfo['storeName'] ?? 'Toko Sejahtera';
+    final storePhone = auth.storeInfo['phone'] ?? '-';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard Utama'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
-          ),
-        ],
-      ),
+      backgroundColor: bgLight,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🏷️ Banner Slider (Carousel)
-            SizedBox(
-              height: 180,
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) => setState(() => _currentPage = index),
-                itemCount: bannerData.length,
-                itemBuilder: (context, index) {
-                  final banner = bannerData[index];
-                  return Container(
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [banner['color'], (banner['color'] as Color).withOpacity(0.7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // HEADER
+                Container(
+                  height: 250,
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                  decoration: BoxDecoration(
+                    color: primaryGreen,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(32),
+                      bottomRight: Radius.circular(32),
                     ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          right: -20,
-                          bottom: -20,
-                          child: Icon(banner['icon'], size: 120, color: Colors.white12),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                banner['title'],
-                                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.storefront, color: Colors.white, size: 24),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                banner['subtitle'],
-                                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(storeName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.phone, color: Colors.white70, size: 12),
+                                      const SizedBox(width: 4),
+                                      Text(storePhone, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ),
+                          Row(
+                            children: [
+                              InkWell(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditStoreScreen())),
+                                child: const CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: Colors.white24,
+                                  child: Icon(Icons.person, color: Colors.white, size: 20),
+                                ),
+                              ),
+                            ],
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text('Selamat pagi, $userName! 👋', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text('Semangat jualannya hari ini!', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          PopupMenuButton<String>(
+                            initialValue: _metricPeriod,
+                            onSelected: (val) {
+                              if (_metricPeriod != val) {
+                                setState(() { _metricPeriod = val; });
+                                _loadDashboardData();
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(_metricPeriod, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 14),
+                                ],
+                              ),
+                            ),
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(value: 'Hari Ini', child: Text('Hari Ini')),
+                              PopupMenuItem(value: 'Bulan Ini', child: Text('Bulan Ini')),
+                              PopupMenuItem(value: 'Tahun Ini', child: Text('Tahun Ini')),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // METRIC CARDS
+                Positioned(
+                  top: 180,
+                  left: 0,
+                  right: 0,
+                  child: SizedBox(
+                    height: 110,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        _buildMetricCard('Penjualan', NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_todaySales), _metricPeriod, Icons.shopping_bag, Colors.green, true),
+                        const SizedBox(width: 12),
+                        _buildMetricCard('Total Transaksi', '$_todayTxCount', _metricPeriod, Icons.shopping_cart_outlined, Colors.blue, true),
+                        const SizedBox(width: 12),
+                        _buildMetricCard('Laba Bersih', NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_todayProfit), _metricPeriod, Icons.trending_up, Colors.green, true),
+                        const SizedBox(width: 12),
+                        _buildMetricCard('Total Stok Item', '$_totalStock', 'Seluruh Produk', Icons.inventory_2_outlined, Colors.orange, false),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
-
-            // 🟢 Page Indicator
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: bannerData.asMap().entries.map((entry) {
-                return Container(
-                  width: _currentPage == entry.key ? 20 : 8,
-                  height: 8,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    color: _currentPage == entry.key ? primaryColor : Colors.grey[300],
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
 
-            // 💰 Referral Summary
-            
+            const SizedBox(height: 70), // Spacer for overlapping cards
 
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: Text(
-                'Menu Utama',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // CHART SECTION
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
               ),
-            ),
-
-            // 📱 4x2 Grid Menu (9 items now, but we keep 8 by removing one or just allowing it to flow)
-            // Let's replace 'Akun' or just add it to the list.
-            // Actually user wants 4x2 style but 8 or 9 is fine. 
-            // I'll add "Tema" as the 9th item and let it flow to next row.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4, // 4 columns across
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.75, // Taller for 4 columns
+              child: Column(
                 children: [
-                  if (auth.isOwner || auth.hasPermission('Manajemen Produk'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.inventory_2_outlined,
-                      color: Colors.indigo,
-                      title: 'Master Data',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen())),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Tren Penjualan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      PopupMenuButton<int>(
+                        initialValue: _chartDays,
+                        onSelected: (val) {
+                          if (_chartDays != val) {
+                            setState(() {
+                              _chartDays = val;
+                            });
+                            _loadDashboardData();
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Text(_chartDays == 1 ? 'Hari Ini' : '$_chartDays Hari Terakhir', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black54),
+                          ],
+                        ),
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 1, child: Text('Hari Ini')),
+                          PopupMenuItem(value: 7, child: Text('7 Hari Terakhir')),
+                          PopupMenuItem(value: 30, child: Text('30 Hari Terakhir')),
+                        ],
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 160,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withOpacity(0.2), strokeWidth: 1),
+                        ),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 22,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                int index = value.toInt();
+                                if (index >= 0 && index < _chartData.length) {
+                                  DateTime date = DateTime.parse(_chartData[index]['date']);
+                                  return Text(DateFormat('dd MMM').format(date), style: const TextStyle(color: Colors.black54, fontSize: 10));
+                                }
+                                return const Text('');
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                              getTitlesWidget: (value, meta) {
+                                if (value == 0) return const Text('', style: TextStyle(fontSize: 10));
+                                String text;
+                                if (value >= 1000000) {
+                                  text = '${(value / 1000000).toStringAsFixed(1)}jt';
+                                } else if (value >= 1000) {
+                                  text = '${(value / 1000).toStringAsFixed(0)}rb';
+                                } else {
+                                  text = value.toInt().toString();
+                                }
+                                return Text(text, style: const TextStyle(color: Colors.black54, fontSize: 10));
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        minX: 0, 
+                        maxX: (_chartData.length > 1 ? _chartData.length - 1 : 1).toDouble(), 
+                        minY: 0, 
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: _chartData.isEmpty 
+                              ? const [FlSpot(0, 0)] 
+                              : _chartData.asMap().entries.map((e) {
+                                  return FlSpot(e.key.toDouble(), e.value['profit'] as double);
+                                }).toList(),
+                            isCurved: true,
+                            color: primaryGreen,
+                            barWidth: 2,
+                            isStrokeCapRound: true,
+                            dotData: FlDotData(
+                              show: true,
+                              getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(radius: 4, color: primaryGreen, strokeWidth: 2, strokeColor: Colors.white),
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                colors: [primaryGreen.withOpacity(0.2), primaryGreen.withOpacity(0.0)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-
-                  if (auth.isOwner || auth.hasPermission('Toko Online'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.storefront_outlined,
-                      color: const Color(0xFF006d77),
-                      title: 'Toko Online',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Laporan Penjualan'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.bar_chart_outlined,
-                      color: Colors.blue,
-                      title: 'Laba Rugi',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0))),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Laporan Penjualan'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.trending_up,
-                      color: Colors.amber,
-                      title: 'Terlaris',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1))),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Manajemen Produk'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.assessment_outlined,
-                      color: Colors.teal,
-                      title: 'Stok',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Riwayat Transaksi'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.receipt_long_outlined,
-                      color: Colors.blueGrey,
-                      title: 'Riwayat',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Arus Kas'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.account_balance_wallet_outlined,
-                      color: Colors.teal,
-                      title: 'Arus Kas',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Pengeluaran'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.trending_down_outlined,
-                      color: Colors.red,
-                      title: 'Pengeluaran',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Kelola Staf'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.people_alt_outlined,
-                      color: Colors.blue,
-                      title: 'Staf',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Referral'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.group_outlined,
-                      color: Colors.deepPurple,
-                      title: 'Referral',
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen())),
-                    ),
-                  if (auth.isOwner || auth.hasPermission('Pengaturan Toko'))
-                    _buildGridItem(
-                      context,
-                      icon: Icons.settings_outlined,
-                      color: Colors.grey.shade600,
-                      title: 'Pengaturan Toko',
-                      onTap: () => _showSettingsBottomSheet(context),
-                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+
+            const SizedBox(height: 20),
+
+            // MENUS
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                childAspectRatio: 2.2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                children: [
+                  _buildMenuBtn(context, 'Produk', Icons.inventory_2_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen()))),
+                  _buildMenuBtn(context, 'Toko Online', Icons.shopping_bag_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen()))),
+                  _buildMenuBtn(context, 'Laba Rugi', Icons.bar_chart, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0)))),
+                  _buildMenuBtn(context, 'Terlaris', Icons.trending_up, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1)))),
+                  _buildMenuBtn(context, 'Stok Barang', Icons.warehouse_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen()))),
+                  _buildMenuBtn(context, 'Riwayat', Icons.history, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()))),
+                  _buildMenuBtn(context, 'Arus Kas', Icons.account_balance_wallet_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen()))),
+                  _buildMenuBtn(context, 'Staf', Icons.people_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen()))),
+                  _buildMenuBtn(context, 'Referral', Icons.group_add_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen()))),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // BOTTOM BANNER (Moved up)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A3B20), // very dark green
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50, height: 50,
+                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.2), shape: BoxShape.circle),
+                    child: const Icon(Icons.point_of_sale, color: Colors.greenAccent, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text('Kelola toko makin mudah', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        SizedBox(height: 4),
+                        Text('Semua fitur penting ada di tangan Anda.', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen())),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                      child: Row(
+                        children: const [
+                          Text('Pelajari Fitur', style: TextStyle(color: Colors.black87, fontSize: 10, fontWeight: FontWeight.bold)),
+                          Icon(Icons.chevron_right, size: 14),
+                        ],
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 2 COLUMNS: TRANSAKSI & STOK
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // TRANSAKSI TERBARU
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Transaksi Terbaru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            InkWell(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: Text('Lihat semua', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (_isLoadingData)
+                          const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+                        else if (_recentTransactions.isEmpty)
+                          const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('Belum ada transaksi', style: TextStyle(fontSize: 12, color: Colors.grey))))
+                        else
+                          ..._recentTransactions.map((tx) {
+                            final formatCurrency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+                            final amount = formatCurrency.format(tx['total_amount'] ?? 0);
+                            final dateStr = tx['created_at'] as String? ?? '';
+                            final date = DateTime.tryParse(dateStr);
+                            final formattedDate = date != null ? DateFormat('dd MMM yyyy • HH:mm').format(date) : dateStr;
+                            return _buildTransactionItem(tx['receipt_number'] ?? 'INV', amount, formattedDate);
+                          }).toList(),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade200),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Text('Lihat semua transaksi', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                SizedBox(width: 4),
+                                Icon(Icons.chevron_right, size: 14),
+                              ],
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // STOK MENIPIS
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Stok Menipis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red)),
+                            InkWell(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen())),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4.0),
+                                child: Text('Lihat semua', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (_isLoadingData)
+                          const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+                        else if (_lowStockProducts.isEmpty)
+                          const Padding(padding: EdgeInsets.all(20), child: Center(child: Text('Stok dalam kondisi aman', style: TextStyle(fontSize: 12, color: Colors.grey))))
+                        else
+                          ..._lowStockProducts.map((p) {
+                            return _buildStockItem(p['name'] ?? 'Produk', p['stock'].toString(), Colors.orange.shade100, Icons.inventory_2);
+                          }).toList(),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+
+
+
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  void _showSettingsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  Widget _buildMetricCard(String title, String value, String subtitle, IconData icon, Color iconColor, bool isUp) {
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      builder: (context) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Pengaturan',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(Icons.store_outlined, color: Colors.teal),
-                    title: const Text('Info Toko'),
-                    subtitle: const Text('Ubah profil dan informasi toko'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const EditStoreScreen()),
-                      );
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.palette_outlined, color: Colors.pink),
-                    title: const Text('Tema'),
-                    subtitle: const Text('Ubah warna tema aplikasi'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ThemeSettingsScreen()),
-                      );
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.lock_outline, color: Colors.orange),
-                    title: const Text('Keamanan'),
-                    subtitle: const Text('Ubah PIN keamanan transaksi'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showPinUpdateDialog(context);
-                    },
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.print_outlined, color: Colors.blue),
-                    title: const Text('Koneksi Printer'),
-                    subtitle: const Text('Hubungkan printer bluetooth untuk cetak struk'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PrinterSettingsScreen()),
-                      );
-                    },
-                  ),
-                  const Divider(),
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.cloud_sync, color: Colors.blue),
-                        title: const Text('Sinkronisasi Cloud'),
-                        subtitle: Text(
-                          auth.cloudSyncEnabled 
-                              ? 'Otomatis aktif (Tiap 30 dtk)' 
-                              : 'Nonaktif. Ketuk ikon untuk sync manual.',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Switch(
-                              value: auth.cloudSyncEnabled,
-                              onChanged: (bool value) {
-                                auth.updateCloudSyncEnabled(value);
-                              },
-                            ),
-                            if (!auth.cloudSyncEnabled)
-                              IconButton(
-                                icon: const Icon(Icons.sync_outlined, color: Colors.green),
-                                tooltip: 'Sync Sekarang',
-                                onPressed: () async {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Memulai sinkronisasi data ke cloud...')),
-                                  );
-                                  try {
-                                    await SyncService().uploadLocalChanges();
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Sinkronisasi cloud berhasil diselesaikan!')),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Sinkronisasi gagal: $e')),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildGridItem(BuildContext context, {required IconData icon, required Color color, required String title, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: color, size: 24),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600)),
+          const Spacer(),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: Colors.black87),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          const Spacer(),
+          Row(
+            children: [
+              Icon(isUp ? Icons.arrow_upward : Icons.info_outline, size: 12, color: isUp ? Colors.green : Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(child: Text(subtitle, style: TextStyle(fontSize: 10, color: isUp ? Colors.green : Colors.grey), overflow: TextOverflow.ellipsis)),
+            ],
+          )
         ],
       ),
     );
   }
 
-  void _showPinUpdateDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Ubah PIN Keamanan'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'PIN Baru',
-            hintText: 'Min. 4 digit angka',
-          ),
+  Widget _buildMenuBtn(BuildContext context, String title, IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade100),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 4)],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.length >= 4) {
-                Provider.of<AuthProvider>(context, listen: false).updatePin(controller.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PIN berhasil diperbarui')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('PIN minimal 4 digit')),
-                );
-              }
-            },
-            child: const Text('Simpan'),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.green.shade700, size: 20),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(String id, String amount, String date) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: const Icon(Icons.receipt_long, color: Colors.green, size: 16),
           ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(id, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                const SizedBox(height: 2),
+                Text(date, style: const TextStyle(color: Colors.grey, fontSize: 9)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(amount, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                child: const Text('Selesai', style: TextStyle(color: Colors.green, fontSize: 8, fontWeight: FontWeight.bold)),
+              )
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockItem(String name, String stock, Color bgColor, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, size: 16, color: Colors.black54),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text('Stok: $stock', style: const TextStyle(color: Colors.grey, fontSize: 9)),
+              ],
+            ),
+          ),
+          Container(
+            width: 20, height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
+            child: Text(stock, style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+          )
         ],
       ),
     );

@@ -5,7 +5,8 @@ import 'package:mobile/models/expense.dart';
 import 'package:intl/intl.dart';
 
 class ExpenseScreen extends StatefulWidget {
-  const ExpenseScreen({super.key});
+  final bool showAppBar;
+  const ExpenseScreen({super.key, this.showAppBar = true});
 
   @override
   State<ExpenseScreen> createState() => _ExpenseScreenState();
@@ -25,7 +26,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengeluaran')),
+      appBar: widget.showAppBar ? AppBar(title: const Text('Pengeluaran')) : null,
       body: Consumer<ExpenseProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {

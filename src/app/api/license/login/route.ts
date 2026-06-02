@@ -37,7 +37,8 @@ export async function POST(req: Request) {
         pin: store.pin || '123456',
         bank_name: store.bank_name || '',
         bank_account: store.bank_account || '',
-        bank_account_name: store.bank_account_name || ''
+        bank_account_name: store.bank_account_name || '',
+        qris_payload: store.qris_payload || ''
       }
     });
   } catch (error: any) {

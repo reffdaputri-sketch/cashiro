@@ -238,6 +238,7 @@ class ApiService {
     String? bankName,
     String? bankAccount,
     String? bankAccountName,
+    String? qrisPayload,
   }) async {
     try {
       final response = await http.post(
@@ -255,6 +256,7 @@ class ApiService {
           'bank_name': bankName,
           'bank_account': bankAccount,
           'bank_account_name': bankAccountName,
+          'qris_payload': qrisPayload,
         }),
       );
 

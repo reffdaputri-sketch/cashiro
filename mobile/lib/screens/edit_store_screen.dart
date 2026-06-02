@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/services/api_service.dart';
+import 'package:mobile/screens/qris_scanner_screen.dart';
 
 
 class EditStoreScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   late TextEditingController _bankNameController;
   late TextEditingController _bankAccountController;
   late TextEditingController _bankAccountNameController;
+  late TextEditingController _qrisPayloadController;
   File? _imageFile;
   String? _currentImagePath;
   
@@ -44,6 +46,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _bankNameController = TextEditingController(text: info['bankName'] ?? '');
     _bankAccountController = TextEditingController(text: info['bankAccount'] ?? '');
     _bankAccountNameController = TextEditingController(text: info['bankAccountName'] ?? '');
+    _qrisPayloadController = TextEditingController(text: info['qrisPayload'] ?? '');
     _currentImagePath = info['imagePath'];
     
     final cityIdStr = info['cityId'];
@@ -111,6 +114,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _bankNameController.dispose();
     _bankAccountController.dispose();
     _bankAccountNameController.dispose();
+    _qrisPayloadController.dispose();
     super.dispose();
   }
 
@@ -138,6 +142,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         bankName: _bankNameController.text,
         bankAccount: _bankAccountController.text,
         bankAccountName: _bankAccountNameController.text,
+        qrisPayload: _qrisPayloadController.text,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -384,6 +389,40 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
               TextFormField(
                 controller: _bankAccountNameController,
                 decoration: const InputDecoration(labelText: 'Atas Nama (A.N)'),
+              ),
+              const SizedBox(height: 24),
+              const Text('Integrasi QRIS (Untuk Pembayaran Online & POS)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _qrisPayloadController,
+                      decoration: const InputDecoration(
+                        labelText: 'QRIS Payload (Teks Mentah QRIS)',
+                        hintText: 'Bisa didapat dari scan stiker QRIS',
+                      ),
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const QrisScannerScreen()),
+                      );
+                      if (result != null && result is String) {
+                        setState(() {
+                          _qrisPayloadController.text = result;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan'),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               ElevatedButton(

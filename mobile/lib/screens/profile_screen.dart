@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/screens/edit_store_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
+import 'package:mobile/screens/printer_settings_screen.dart';
+import 'package:mobile/screens/theme_settings_screen.dart';
 import 'package:mobile/services/backup_service.dart';
 import 'package:mobile/providers/product_provider.dart';
 import 'dart:io';
@@ -93,6 +95,30 @@ class ProfileScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const EditStoreScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.print, color: Colors.black87),
+                title: const Text('Pengaturan Printer'),
+                subtitle: const Text('Hubungkan printer thermal Bluetooth'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.color_lens, color: Colors.orange),
+                title: const Text('Tampilan & Tema'),
+                subtitle: const Text('Ubah warna utama aplikasi'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ThemeSettingsScreen()),
                   );
                 },
               ),

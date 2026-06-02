@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/database_service.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/screens/debt_list_screen.dart';
+import 'package:mobile/screens/expense_screen.dart';
 
 class CashFlowScreen extends StatefulWidget {
   const CashFlowScreen({super.key});
@@ -80,7 +81,7 @@ class _CashFlowScreenState extends State<CashFlowScreen> {
         NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
@@ -97,7 +98,8 @@ class _CashFlowScreenState extends State<CashFlowScreen> {
             labelStyle: TextStyle(fontWeight: FontWeight.bold),
             tabs: [
               Tab(text: 'Arus Kas'),
-              Tab(text: 'Manajemen Hutang'),
+              Tab(text: 'Pengeluaran'),
+              Tab(text: 'Hutang Piutang'),
             ],
           ),
         ),
@@ -275,7 +277,10 @@ class _CashFlowScreenState extends State<CashFlowScreen> {
               ),
             ),
             
-            // Tab 2: Manajemen Hutang
+            // Tab 2: Pengeluaran
+            const ExpenseScreen(showAppBar: false),
+
+            // Tab 3: Manajemen Hutang
             const DebtListScreen(showAppBar: false),
           ],
         ),

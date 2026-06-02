@@ -62,6 +62,56 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  void _showPaySavedOrderDialog(BuildContext context, Map<String, dynamic> t, List<Map<String, dynamic>> items) {
+     final totalAmount = (t['total_amount'] as num).toDouble();
+     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+     showDialog(
+       context: context,
+       builder: (ctx) => AlertDialog(
+          title: const Text('Pelunasan Pesanan'),
+          content: Text('Selesaikan pembayaran pesanan ini secara Tunai sebesar:\n\n${currencyFormatter.format(totalAmount)}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+          actions: [
+             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+             ElevatedButton(
+               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+               onPressed: () async {
+                  await _db.update('transactions', {
+                    'paid_amount': totalAmount,
+                    'payment_method': 'Tunai',
+                    'is_synced': 0
+                  }, t['id']);
+                  
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    _refresh();
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran berhasil dicatat!'), backgroundColor: Colors.green));
+                    
+                    // print receipt
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    final receiptService = ReceiptService();
+                    await receiptService.printReceipt(
+                      authProvider.storeInfo,
+                      t['id'],
+                      totalAmount,
+                      totalAmount,
+                      0, // kembalian
+                      items.map((item) => {
+                        'name': item['name'],
+                        'quantity': item['quantity'],
+                        'total': (item['total'] as num).toDouble(),
+                      }).toList(),
+                      paymentMethod: 'Tunai',
+                    );
+                  }
+               },
+               child: const Text('Bayar & Cetak')
+             )
+          ]
+       )
+     );
+  }
+
   void _showTransactionDetails(Map<String, dynamic> t) async {
     final db = await _db.database;
     final items = await db.rawQuery('''
@@ -93,6 +143,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
         final date = DateTime.parse(t['created_at']);
         final double kembalian = (t['paid_amount'] as num).toDouble() - (t['total_amount'] as num).toDouble();
+        final bool isUnpaid = (t['paid_amount'] as num).toDouble() < (t['total_amount'] as num).toDouble();
 
         return DraggableScrollableSheet(
           initialChildSize: 0.6,
@@ -165,7 +216,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Metode Pembayaran'),
-                      Text(t['payment_method'] ?? 'Tunai', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(t['payment_method'] ?? 'Tunai', style: TextStyle(fontWeight: FontWeight.bold, color: isUnpaid ? Colors.orange : Colors.black87)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -185,8 +236,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  Row(
-                    children: [
+                  if (isUnpaid)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.payment),
+                            label: const Text('Bayar Sekarang', style: TextStyle(fontSize: 16)),
+                            onPressed: () {
+                               Navigator.pop(context); // Close bottom sheet
+                               _showPaySavedOrderDialog(context, t, items);
+                            }
+                          )
+                        )
+                      ]
+                    )
+                  else
+                    Row(
+                      children: [
                       if (Provider.of<AuthProvider>(context, listen: false).isOwner) ...[
                         Expanded(
                           child: ElevatedButton.icon(
@@ -336,6 +409,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     final date = DateTime.parse(t['created_at']);
                     final timeStr = DateFormat('HH:mm').format(date);
                     final paymentMethod = t['payment_method'] ?? 'Tunai';
+                    final bool isUnpaid = (t['paid_amount'] as num).toDouble() < (t['total_amount'] as num).toDouble();
                     
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -372,9 +446,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                         const SizedBox(width: 4),
                                         Text(timeStr, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                                         const SizedBox(width: 12),
-                                        Icon(paymentMethod == 'Tunai' ? Icons.money : Icons.credit_card, size: 14, color: Colors.grey[600]),
+                                        Icon(paymentMethod == 'Tunai' ? Icons.money : (isUnpaid ? Icons.save : Icons.credit_card), size: 14, color: isUnpaid ? Colors.red : Colors.grey[600]),
                                         const SizedBox(width: 4),
-                                        Text(paymentMethod, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                        Expanded(
+                                          child: Text(
+                                            paymentMethod, 
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(color: isUnpaid ? Colors.red : Colors.grey[600], fontSize: 13, fontWeight: isUnpaid ? FontWeight.bold : FontWeight.normal)
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -382,7 +462,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                               Text(
                                 currencyFormatter.format(t['total_amount']),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isUnpaid ? Colors.red : Colors.green),
                               ),
                             ],
                           ),

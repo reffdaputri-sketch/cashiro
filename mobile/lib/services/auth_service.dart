@@ -17,6 +17,7 @@ class AuthService {
   static const String KEY_BANK_NAME = 'bank_name';
   static const String KEY_BANK_ACCOUNT = 'bank_account';
   static const String KEY_BANK_ACCOUNT_NAME = 'bank_account_name';
+  static const String KEY_QRIS_PAYLOAD = 'qris_payload';
 
   Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
@@ -52,6 +53,7 @@ class AuthService {
     required String storeId,
     required String licenseKey,
     required String email,
+    String? qrisPayload,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
@@ -65,6 +67,7 @@ class AuthService {
     await prefs.setString(KEY_STORE_ID, storeId);
     await prefs.setString(KEY_LICENSE_KEY, licenseKey);
     await prefs.setString(KEY_EMAIL, email);
+    if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
     await prefs.setBool(KEY_IS_REGISTERED, true);
   }
 
@@ -83,10 +86,11 @@ class AuthService {
       'bankName': prefs.getString(KEY_BANK_NAME) ?? '',
       'bankAccount': prefs.getString(KEY_BANK_ACCOUNT) ?? '',
       'bankAccountName': prefs.getString(KEY_BANK_ACCOUNT_NAME) ?? '',
+      'qrisPayload': prefs.getString(KEY_QRIS_PAYLOAD) ?? '',
     };
   }
 
-  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName}) async {
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
     await prefs.setString(KEY_OWNER_NAME, ownerName);
@@ -97,6 +101,7 @@ class AuthService {
     if (bankName != null) await prefs.setString(KEY_BANK_NAME, bankName);
     if (bankAccount != null) await prefs.setString(KEY_BANK_ACCOUNT, bankAccount);
     if (bankAccountName != null) await prefs.setString(KEY_BANK_ACCOUNT_NAME, bankAccountName);
+    if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
   }
 
   Future<void> updatePin(String newPin) async {
