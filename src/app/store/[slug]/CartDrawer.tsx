@@ -32,6 +32,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
   const [error, setError] = useState('');
   const [orderId, setOrderId] = useState<number | null>(null);
   const [waLink, setWaLink] = useState('');
+  const [savedTotal, setSavedTotal] = useState(0);
 
   // Shipping State
   const [provinces, setProvinces] = useState<any[]>([]);
@@ -192,6 +193,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
       }
 
       setOrderId(data.order_id);
+      setSavedTotal(total + shippingCost);
       clearCart();
 
       if (data.seller_phone) {
@@ -528,13 +530,13 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             <h3>Scan untuk Membayar</h3>
             <div style={{ margin: '20px auto', padding: '16px', background: 'white', display: 'inline-block', borderRadius: '16px' }}>
               <QRCodeCanvas 
-                value={generateDynamicQris(qrisPayload, total + shippingCost)} 
+                value={generateDynamicQris(qrisPayload, savedTotal)} 
                 size={220} 
                 level={"H"} 
               />
             </div>
             <h2 style={{ color: '#006d77', fontSize: '28px', marginBottom: '8px' }}>
-              {formatRupiah(total + shippingCost)}
+              {formatRupiah(savedTotal)}
             </h2>
             <p className="qris-desc">Silakan scan kode QRIS ini menggunakan aplikasi E-Wallet (GoPay, OVO, Dana) atau Mobile Banking Anda.</p>
             <p className="order-id-text" style={{ marginTop: '16px' }}>ID Pesanan: #{orderId}</p>

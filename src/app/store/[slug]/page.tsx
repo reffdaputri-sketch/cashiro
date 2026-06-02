@@ -14,6 +14,7 @@ interface SellerData {
     bank_account: string;
     bank_account_name: string;
     qris_payload: string | null;
+    banners: string[];
   };
   products: {
     id: number;
@@ -23,6 +24,7 @@ interface SellerData {
     stock: number;
     weight: number;
     image_url: string;
+    category: string;
   }[];
 }
 

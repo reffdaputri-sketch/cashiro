@@ -18,6 +18,7 @@ class AuthService {
   static const String KEY_BANK_ACCOUNT = 'bank_account';
   static const String KEY_BANK_ACCOUNT_NAME = 'bank_account_name';
   static const String KEY_QRIS_PAYLOAD = 'qris_payload';
+  static const String KEY_BANNERS = 'banners';
 
   Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
@@ -87,10 +88,11 @@ class AuthService {
       'bankAccount': prefs.getString(KEY_BANK_ACCOUNT) ?? '',
       'bankAccountName': prefs.getString(KEY_BANK_ACCOUNT_NAME) ?? '',
       'qrisPayload': prefs.getString(KEY_QRIS_PAYLOAD) ?? '',
+      'banners': prefs.getString(KEY_BANNERS) ?? '[]',
     };
   }
 
-  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload}) async {
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
     await prefs.setString(KEY_OWNER_NAME, ownerName);
@@ -102,6 +104,7 @@ class AuthService {
     if (bankAccount != null) await prefs.setString(KEY_BANK_ACCOUNT, bankAccount);
     if (bankAccountName != null) await prefs.setString(KEY_BANK_ACCOUNT_NAME, bankAccountName);
     if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
+    if (banners != null) await prefs.setString(KEY_BANNERS, jsonEncode(banners));
   }
 
   Future<void> updatePin(String newPin) async {

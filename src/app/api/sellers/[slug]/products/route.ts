@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const { store_id, name, description, price, stock, image_url } = await req.json();
+    const { store_id, name, description, price, stock, image_url, category } = await req.json();
 
     if (!store_id || !name || !price) {
       return NextResponse.json({ error: 'name, price wajib diisi' }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         price: Number(price),
         stock: Number(stock) || 0,
         image_url: image_url || '',
+        category: category || '',
         is_active: true,
       })
       .select('*')
@@ -67,7 +68,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 export async function PUT(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const { store_id, product_id, name, description, price, stock, image_url, is_active } = await req.json();
+    const { store_id, product_id, name, description, price, stock, image_url, is_active, category } = await req.json();
 
     const { data: seller } = await supabase
       .from('sellers')
@@ -85,6 +86,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ slug: st
     if (stock !== undefined) updates.stock = Number(stock);
     if (image_url !== undefined) updates.image_url = image_url;
     if (is_active !== undefined) updates.is_active = is_active;
+    if (category !== undefined) updates.category = category;
 
     const { data: product, error } = await supabase
       .from('seller_products')

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/services/api_service.dart';
 import 'package:mobile/screens/qris_scanner_screen.dart';
+import 'dart:convert';
 
 
 class EditStoreScreen extends StatefulWidget {
@@ -33,6 +34,10 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   String? _selectedProvinceId;
   String? _selectedCityId;
   bool _isLoadingLocation = false;
+  
+  List<String> _currentBanners = [];
+  List<File> _newBannerFiles = [];
+  bool _isUploadingBanners = false;
 
   @override
   void initState() {
@@ -52,6 +57,15 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     final cityIdStr = info['cityId'];
     if (cityIdStr != null && cityIdStr.isNotEmpty) {
       _selectedCityId = cityIdStr;
+    }
+    
+    final bannersJson = info['banners'];
+    if (bannersJson != null && bannersJson.isNotEmpty) {
+      try {
+        _currentBanners = List<String>.from(jsonDecode(bannersJson));
+      } catch (e) {
+        debugPrint('Failed to parse banners: $e');
+      }
     }
     
     _fetchProvinces();
@@ -128,11 +142,43 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     }
   }
 
+  Future<void> _pickBanner() async {
+    final picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _newBannerFiles.addAll(pickedFiles.map((pf) => File(pf.path)));
+      });
+    }
+  }
+
 
 
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
-      await Provider.of<AuthProvider>(context, listen: false).updateStore(
+      setState(() => _isUploadingBanners = true);
+      
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final info = auth.storeInfo;
+      final storeId = info['storeId'] ?? '';
+      final licenseKey = info['licenseKey'] ?? '';
+      
+      List<String> finalBanners = List.from(_currentBanners);
+      
+      if (_newBannerFiles.isNotEmpty && storeId.isNotEmpty && licenseKey.isNotEmpty) {
+        for (var file in _newBannerFiles) {
+          final url = await ApiService().uploadImage(
+            filePath: file.path, 
+            storeId: storeId, 
+            licenseKey: licenseKey
+          );
+          if (url != null) {
+            finalBanners.add(url);
+          }
+        }
+      }
+      
+      await auth.updateStore(
         _storeNameController.text,
         _ownerNameController.text,
         _phoneController.text,
@@ -143,8 +189,10 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         bankAccount: _bankAccountController.text,
         bankAccountName: _bankAccountNameController.text,
         qrisPayload: _qrisPayloadController.text,
+        banners: finalBanners,
       );
       if (mounted) {
+        setState(() => _isUploadingBanners = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profil toko berhasil diperbarui')),
         );
@@ -198,6 +246,72 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                     const Text('Ganti Logo Toko', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Banner Toko (Slider Landing Page)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              if (_currentBanners.isNotEmpty || _newBannerFiles.isNotEmpty)
+                SizedBox(
+                  height: 100,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      ..._currentBanners.asMap().entries.map((entry) => Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8, top: 8),
+                            width: 150,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(image: NetworkImage(entry.value), fit: BoxFit.cover),
+                            ),
+                          ),
+                          Container(
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() => _currentBanners.removeAt(entry.key));
+                              },
+                            ),
+                          ),
+                        ],
+                      )),
+                      ..._newBannerFiles.asMap().entries.map((entry) => Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8, top: 8),
+                            width: 150,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              image: DecorationImage(image: FileImage(entry.value), fit: BoxFit.cover),
+                            ),
+                          ),
+                          Container(
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                setState(() => _newBannerFiles.removeAt(entry.key));
+                              },
+                            ),
+                          ),
+                        ],
+                      )),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _pickBanner,
+                icon: const Icon(Icons.add_photo_alternate),
+                label: const Text('Tambah Banner'),
               ),
               const SizedBox(height: 24),
               // License Information Card
@@ -426,8 +540,10 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _submit,
-                child: const Text('Simpan Perubahan'),
+                onPressed: _isUploadingBanners ? null : _submit,
+                child: _isUploadingBanners 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Simpan Perubahan'),
               ),
             ],
           ),

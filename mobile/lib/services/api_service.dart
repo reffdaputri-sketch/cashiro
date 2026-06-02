@@ -239,6 +239,7 @@ class ApiService {
     String? bankAccount,
     String? bankAccountName,
     String? qrisPayload,
+    List<String>? banners,
   }) async {
     try {
       final response = await http.post(
@@ -257,6 +258,7 @@ class ApiService {
           'bank_account': bankAccount,
           'bank_account_name': bankAccountName,
           'qris_payload': qrisPayload,
+          if (banners != null) 'banners': banners,
         }),
       );
 

@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
     const { data: seller, error: sellerErr } = await supabase
       .from('sellers')
-      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name, qris_payload)')
+      .select('id, slug, balance, stores(store_name, owner_name, phone, address, city_id, bank_name, bank_account, bank_account_name, qris_payload, banners)')
       .eq('slug', slug)
       .eq('is_active', true)
       .single();
@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
     const { data: products } = await supabase
       .from('seller_products')
-      .select('id, name, description, price, stock, weight, image_url')
+      .select('id, name, description, price, stock, weight, image_url, category')
       .eq('seller_id', seller.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -38,6 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
         bank_account: storeData.bank_account || '',
         bank_account_name: storeData.bank_account_name || '',
         qris_payload: storeData.qris_payload || null,
+        banners: Array.isArray(storeData.banners) ? storeData.banners : (typeof storeData.banners === 'string' ? (() => { try { return JSON.parse(storeData.banners); } catch { return []; } })() : []),
       },
       products: products || [],
     });

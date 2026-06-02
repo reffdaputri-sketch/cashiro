@@ -74,10 +74,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     let paymentUrl = '';
     let merchantOrderId = '';
 
-    if (payment_method === 'qris') {
-      return NextResponse.json({ error: 'Metode pembayaran QRIS sudah dinonaktifkan' }, { status: 400 });
-    }
-
     const { data: order, error: orderErr } = await supabase
       .from('seller_orders')
       .insert({
