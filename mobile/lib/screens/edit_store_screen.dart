@@ -554,6 +554,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                   const Center(child: CircularProgressIndicator())
                 else
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: _selectedProvinceId,
                     decoration: const InputDecoration(labelText: 'Provinsi', border: OutlineInputBorder()),
                     items: _provinces.map((p) => DropdownMenuItem<String>(
@@ -572,6 +573,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                   const Center(child: CircularProgressIndicator())
                 else if (_cities.isNotEmpty || _selectedCityId != null)
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
                     value: _cities.any((c) => c['city_id'].toString() == _selectedCityId) ? _selectedCityId : null,
                     decoration: const InputDecoration(labelText: 'Kota / Kabupaten', border: OutlineInputBorder()),
                     items: _cities.map((c) => DropdownMenuItem<String>(
