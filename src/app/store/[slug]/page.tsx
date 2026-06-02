@@ -17,6 +17,9 @@ interface SellerData {
     banners: string[];
     is_local_courier_active: boolean;
     local_courier_fee: number;
+    store_lat: number | null;
+    store_lng: number | null;
+    max_delivery_radius: number;
   };
   products: {
     id: number;
