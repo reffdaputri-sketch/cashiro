@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/services/api_service.dart';
@@ -25,16 +26,23 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
   List<dynamic> _products = [];
   List<dynamic> _orders = [];
   String? _error;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _initSeller();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!_loading && _slug != null && mounted) {
+        _refreshData();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -391,17 +399,20 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final status = o['status'] as String? ?? 'pending';
+          return DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) => Padding(
+              padding: const EdgeInsets.all(24),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Detail Pesanan #${o['id']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -413,33 +424,21 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Status', style: TextStyle(color: Colors.grey)),
-                  DropdownButton<String>(
-                    value: ['pending', 'processing', 'paid', 'cancelled'].contains(status) ? status : 'pending',
-                    underline: const SizedBox(),
-                    items: const [
-                      DropdownMenuItem(value: 'pending', child: Text('⏳ Pending')),
-                      DropdownMenuItem(value: 'processing', child: Text('⚙️ Proses')),
-                      DropdownMenuItem(value: 'paid', child: Text('✅ Lunas')),
-                      DropdownMenuItem(value: 'cancelled', child: Text('❌ Batal')),
-                    ],
-                    onChanged: (newStatus) async {
-                      if (newStatus != null && newStatus != status) {
-                        try {
-                          await _api.updateSellerOrderStatus(slug: _slug!, orderId: o['id'], status: newStatus);
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          _refreshData();
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Status berhasil diubah')));
-                          }
-                        } catch (e) {
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Gagal: $e')));
-                          }
-                        }
-                      }
-                    },
-                  ),
+                  const Text('Status Saat Ini', style: TextStyle(color: Colors.grey)),
+                  _statusChip(status),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Ubah Status:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statusOption(ctx, o, 'pending', '⏳ Pending', status, setSheetState),
+                  _statusOption(ctx, o, 'processing', '⚙️ Proses', status, setSheetState),
+                  _statusOption(ctx, o, 'paid', '✅ Lunas', status, setSheetState),
+                  _statusOption(ctx, o, 'cancelled', '❌ Batal', status, setSheetState),
                 ],
               ),
               const SizedBox(height: 8),
@@ -562,6 +561,52 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
             ],
           ),
         ),
+      );
+    },
+    ),
+    );
+  }
+
+  Widget _statusOption(BuildContext ctx, Map<String, dynamic> o, String value, String label, String currentStatus, StateSetter setSheetState) {
+    final isSelected = currentStatus == value;
+    final primary = const Color(0xFF006d77);
+    return InkWell(
+      onTap: isSelected ? null : () async {
+        final oldStatus = o['status'];
+        // Optimistic update
+        setSheetState(() => o['status'] = value);
+        setState(() {}); 
+
+        try {
+          await _api.updateSellerOrderStatus(slug: _slug!, orderId: o['id'], status: value);
+          // refresh silently in background
+          _refreshData();
+        } catch (e) {
+          // Revert on error
+          setSheetState(() => o['status'] = oldStatus);
+          setState(() {});
+          if (ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Gagal update: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: Colors.red));
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? primary : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? primary : Colors.grey.shade300),
+          boxShadow: isSelected ? [BoxShadow(color: primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -648,6 +693,32 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
             ),
           ]),
         ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _showEditSlugDialog,
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Ubah Link'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final url = Uri.parse(_storeUrl());
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+                icon: const Icon(Icons.open_in_browser, size: 16),
+                label: const Text('Buka Toko'),
+                style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 24),
 
         // Tips
@@ -685,5 +756,58 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     );
   }
 
-  // _showProductForm removed (moved to Master Data)
+  void _showEditSlugDialog() {
+    final ctrl = TextEditingController(text: _slug);
+    bool saving = false;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Ubah Link Toko'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Masukkan nama link baru untuk toko Anda (tanpa spasi).', style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: InputDecoration(
+                  prefixText: 'cashiro.web.id/store/',
+                  prefixStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: saving ? null : () async {
+                final newSlug = ctrl.text.trim();
+                if (newSlug.isEmpty || newSlug == _slug) return;
+                setDialogState(() => saving = true);
+                try {
+                  final updatedSlug = await _api.updateSellerSlug(_slug!, newSlug);
+                  setState(() => _slug = updatedSlug);
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link berhasil diubah!')));
+                  }
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red));
+                  }
+                } finally {
+                  setDialogState(() => saving = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006d77), foregroundColor: Colors.white),
+              child: saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Simpan'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

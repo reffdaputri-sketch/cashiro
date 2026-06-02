@@ -306,6 +306,25 @@ class ApiService {
     }
   }
 
+  /// Update slug / link toko online seller
+  Future<String> updateSellerSlug(String oldSlug, String newSlug) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/sellers/$oldSlug'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'new_slug': newSlug}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return data['slug'];
+      }
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('updateSellerSlug Error: $e');
+      rethrow;
+    }
+  }
+
   /// Ambil info seller + daftar produk landing page
   Future<Map<String, dynamic>> getSellerInfo(String slug) async {
     try {

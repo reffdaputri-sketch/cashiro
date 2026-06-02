@@ -44,3 +44,47 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+// PATCH /api/sellers/[slug] - Update slug seller
+export async function PATCH(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
+    const { new_slug } = await req.json();
+
+    if (!new_slug || typeof new_slug !== 'string') {
+      return NextResponse.json({ error: 'Slug baru harus diisi' }, { status: 400 });
+    }
+
+    const formattedSlug = new_slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+    if (formattedSlug.length < 3) {
+      return NextResponse.json({ error: 'Slug minimal 3 karakter' }, { status: 400 });
+    }
+
+    // Check if new slug exists
+    const { data: existing } = await supabase
+      .from('sellers')
+      .select('id')
+      .eq('slug', formattedSlug)
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ error: 'Link (slug) sudah digunakan, silakan pilih yang lain' }, { status: 400 });
+    }
+
+    const { data: seller, error: updateErr } = await supabase
+      .from('sellers')
+      .update({ slug: formattedSlug })
+      .eq('slug', slug)
+      .select('slug')
+      .single();
+
+    if (updateErr || !seller) {
+      return NextResponse.json({ error: 'Gagal memperbarui link toko' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, slug: seller.slug });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
