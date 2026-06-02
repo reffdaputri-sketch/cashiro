@@ -410,6 +410,29 @@ class ApiService {
     }
   }
 
+  /// Update status order landing page
+  Future<Map<String, dynamic>> updateSellerOrderStatus({
+    required String slug,
+    required int orderId,
+    required String status,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/sellers/$slug/orders'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'order_id': orderId,
+          'status': status,
+        }),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      throw Exception(_parseError(response.body));
+    } catch (e) {
+      debugPrint('updateSellerOrderStatus Error: $e');
+      rethrow;
+    }
+  }
+
   /// Cek saldo seller
   Future<double> getSellerBalance(String slug) async {
     try {

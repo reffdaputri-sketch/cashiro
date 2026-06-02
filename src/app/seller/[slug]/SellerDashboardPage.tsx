@@ -130,10 +130,7 @@ export default function SellerDashboardPage({ slug }: { slug: string }) {
 
   // Simpan Produk
   const openAddProduct = () => {
-    setEditProduct(null);
-    setPName(''); setPDesc(''); setPPrice(''); setPStock(''); setPImage('');
-    setProductError('');
-    setShowProductForm(true);
+    alert('Silakan tambah produk baru melalui Menu Master Data di Aplikasi Kasir Cashiro agar data terpusat.');
   };
 
   const openEditProduct = (p: Product) => {
@@ -196,6 +193,24 @@ export default function SellerDashboardPage({ slug }: { slug: string }) {
     navigator.clipboard.writeText(storeUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleUpdateOrderStatus = async (orderId: number, status: string) => {
+    try {
+      const res = await fetch(`/api/sellers/${slug}/orders`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, status }),
+      });
+      if (res.ok) {
+        fetchOrders();
+      } else {
+        const data = await res.json();
+        alert('Gagal update status: ' + data.error);
+      }
+    } catch (e: any) {
+      alert('Gagal update status');
+    }
   };
 
   // === LOGIN PAGE ===
@@ -354,8 +369,19 @@ export default function SellerDashboardPage({ slug }: { slug: string }) {
                       </div>
                       <div className="order-right">
                         <div className="order-total">{formatRupiah(o.total_amount)}</div>
-                        <span className={`status-pill ${o.status}`}>{o.status === 'paid' ? '✅ Lunas' : o.status === 'pending' ? '⏳ Pending' : '❌ Batal'}</span>
-                        <span className="payment-pill">{o.payment_method === 'qris' ? '📱 QRIS' : '💵 Manual'}</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                          <select 
+                            value={o.status} 
+                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                            className={`status-select ${o.status}`}
+                          >
+                            <option value="pending">⏳ Pending</option>
+                            <option value="processing">⚙️ Proses</option>
+                            <option value="paid">✅ Lunas</option>
+                            <option value="cancelled">❌ Batal</option>
+                          </select>
+                          <span className="payment-pill">{o.payment_method === 'qris' ? '📱 QRIS' : '💵 Manual'}</span>
+                        </div>
                       </div>
                     </div>
                     <div className="order-items">
@@ -521,6 +547,11 @@ const dashStyles = `
   .order-phone, .order-date { font-size: 12px; color: #888; margin-top: 3px; }
   .order-right { text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
   .order-total { font-weight: 800; font-size: 16px; color: #006d77; }
+  .status-select { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid #e0e0f0; background: white; cursor: pointer; outline: none; appearance: none; }
+  .status-select.paid { background: #d1fae5; color: #065f46; border-color: #d1fae5; }
+  .status-select.pending { background: #fef3c7; color: #92400e; border-color: #fef3c7; }
+  .status-select.processing { background: #dbeafe; color: #1e40af; border-color: #dbeafe; }
+  .status-select.cancelled { background: #fee2e2; color: #991b1b; border-color: #fee2e2; }
   .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
   .status-pill.paid { background: #d1fae5; color: #065f46; }
   .status-pill.pending { background: #fef3c7; color: #92400e; }

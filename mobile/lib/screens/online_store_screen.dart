@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/services/api_service.dart';
+import 'package:mobile/screens/master_data_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -175,7 +176,12 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
               label: const Text('Tambah Produk'),
-              onPressed: () => _showProductForm(context, null),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MasterDataScreen()),
+                ).then((_) => _refreshData());
+              },
             )
           : null,
     );
@@ -234,13 +240,11 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                     ),
                     trailing: PopupMenuButton(
                       itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'edit', child: Text('✏️ Edit')),
                         PopupMenuItem(
                             value: 'toggle',
                             child: Text(isActive ? '❌ Nonaktifkan' : '✅ Aktifkan')),
                       ],
                       onSelected: (val) async {
-                        if (val == 'edit') _showProductForm(context, p);
                         if (val == 'toggle') {
                           await _api.updateSellerProduct(
                             slug: _slug!,
@@ -365,6 +369,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     switch (status) {
       case 'paid': bg = Colors.green.shade100; fg = Colors.green.shade700; label = '✅ Lunas'; break;
       case 'cancelled': bg = Colors.red.shade100; fg = Colors.red.shade700; label = '❌ Batal'; break;
+      case 'processing': bg = Colors.blue.shade100; fg = Colors.blue.shade700; label = '⚙️ Proses'; break;
       default: bg = Colors.orange.shade100; fg = Colors.orange.shade700; label = '⏳ Pending';
     }
     return _chip(label, bg, fg);
@@ -405,12 +410,36 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
               ),
               const Divider(),
               
-              // Status & Info
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Status', style: TextStyle(color: Colors.grey)),
-                  _statusChip(status),
+                  DropdownButton<String>(
+                    value: ['pending', 'processing', 'paid', 'cancelled'].contains(status) ? status : 'pending',
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: 'pending', child: Text('⏳ Pending')),
+                      DropdownMenuItem(value: 'processing', child: Text('⚙️ Proses')),
+                      DropdownMenuItem(value: 'paid', child: Text('✅ Lunas')),
+                      DropdownMenuItem(value: 'cancelled', child: Text('❌ Batal')),
+                    ],
+                    onChanged: (newStatus) async {
+                      if (newStatus != null && newStatus != status) {
+                        try {
+                          await _api.updateSellerOrderStatus(slug: _slug!, orderId: o['id'], status: newStatus);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _refreshData();
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Status berhasil diubah')));
+                          }
+                        } catch (e) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+                          }
+                        }
+                      }
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -656,117 +685,5 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     );
   }
 
-  // ─── FORM PRODUK ───
-  void _showProductForm(BuildContext context, Map<String, dynamic>? product) {
-    final nameCtrl = TextEditingController(text: product?['name'] ?? '');
-    final descCtrl = TextEditingController(text: product?['description'] ?? '');
-    final priceCtrl = TextEditingController(text: product != null ? '${product['price']}' : '');
-    final stockCtrl = TextEditingController(text: product != null ? '${product['stock']}' : '');
-    final imageCtrl = TextEditingController(text: product?['image_url'] ?? '');
-    bool saving = false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text(product == null ? '➕ Tambah Produk' : '✏️ Edit Produk',
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ]),
-              const SizedBox(height: 16),
-              _formField('Nama Produk *', nameCtrl, 'Nama produk'),
-              const SizedBox(height: 12),
-              _formField('Deskripsi', descCtrl, 'Deskripsi singkat', maxLines: 2),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: _formField('Harga (Rp) *', priceCtrl, '0', isNumber: true)),
-                const SizedBox(width: 12),
-                Expanded(child: _formField('Stok', stockCtrl, '0', isNumber: true)),
-              ]),
-              const SizedBox(height: 12),
-              _formField('URL Gambar', imageCtrl, 'https://...'),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: saving ? null : () async {
-                    if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nama dan harga wajib diisi'), backgroundColor: Colors.red));
-                      return;
-                    }
-                    setSheetState(() => saving = true);
-                    try {
-                      final storeId = Provider.of<AuthProvider>(context, listen: false).storeInfo['storeId'] ?? '';
-                      if (product == null) {
-                        await _api.addSellerProduct(
-                          slug: _slug!, storeId: storeId,
-                          name: nameCtrl.text, description: descCtrl.text,
-                          price: double.tryParse(priceCtrl.text) ?? 0,
-                          stock: int.tryParse(stockCtrl.text) ?? 0,
-                          imageUrl: imageCtrl.text,
-                        );
-                      } else {
-                        await _api.updateSellerProduct(
-                          slug: _slug!, storeId: storeId, productId: product['id'],
-                          name: nameCtrl.text, description: descCtrl.text,
-                          price: double.tryParse(priceCtrl.text),
-                          stock: int.tryParse(stockCtrl.text),
-                          imageUrl: imageCtrl.text,
-                        );
-                      }
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      _refreshData();
-                    } catch (e) {
-                      if (ctx.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-                      }
-                    } finally {
-                      setSheetState(() => saving = false);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006d77),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: Text(saving ? 'Menyimpan...' : (product == null ? 'Tambah Produk' : 'Simpan Perubahan'),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _formField(String label, TextEditingController ctrl, String hint,
-      {int maxLines = 1, bool isNumber = false}) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-      const SizedBox(height: 6),
-      TextField(
-        controller: ctrl,
-        maxLines: maxLines,
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(
-          hintText: hint,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      ),
-    ]);
-  }
+  // _showProductForm removed (moved to Master Data)
 }

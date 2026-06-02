@@ -138,3 +138,32 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+// PATCH /api/sellers/[slug]/orders - Update order status
+export async function PATCH(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    const { slug } = await params;
+    const { order_id, status } = await req.json();
+
+    if (!order_id || !status) {
+      return NextResponse.json({ error: 'Order ID dan status harus diisi' }, { status: 400 });
+    }
+
+    const { data: seller } = await supabase
+      .from('sellers').select('id').eq('slug', slug).single();
+    if (!seller) return NextResponse.json({ error: 'Toko tidak ditemukan' }, { status: 404 });
+
+    const { data: order, error } = await supabase
+      .from('seller_orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', order_id)
+      .eq('seller_id', seller.id)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, order });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
