@@ -107,8 +107,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners}) async {
-    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners);
+  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee}) async {
+    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners, isLocalCourierActive: isLocalCourierActive, localCourierFee: localCourierFee);
     await checkRegistration();
     
     // Update in cloud if online (license key is not mock)
@@ -130,6 +130,8 @@ class AuthProvider with ChangeNotifier {
           bankAccountName: bankAccountName,
           qrisPayload: qrisPayload,
           banners: banners,
+          isLocalCourierActive: isLocalCourierActive,
+          localCourierFee: localCourierFee,
         );
       } catch (e) {
         debugPrint('Cloud profile update failed: $e');

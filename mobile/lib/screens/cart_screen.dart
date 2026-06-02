@@ -436,8 +436,7 @@ class _CartScreenState extends State<CartScreen> {
             
             _buildPaymentOption(context, 'Tunai', Icons.money, cart),
             _buildPaymentOption(context, 'QRIS', Icons.qr_code_scanner, cart),
-            _buildPaymentOption(context, 'Kartu Debit', Icons.credit_card, cart),
-            _buildPaymentOption(context, 'Kartu Kredit', Icons.credit_card, cart),
+            _buildPaymentOption(context, 'E-Wallet (Dana, OVO, dll)', Icons.account_balance_wallet, cart),
             _buildPaymentOption(context, 'Hutang / Tempo', Icons.history, cart),
             _buildPaymentOption(context, 'Belum Bayar (Simpan)', Icons.save, cart),
             

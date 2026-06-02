@@ -592,9 +592,9 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
                         icon = Icons.qr_code_scanner;
                         color = Colors.blue;
                         break;
-                      case 'kartu debit':
-                      case 'kartu kredit':
-                        icon = Icons.credit_card;
+                      case 'e-wallet (dana, ovo, dll)':
+                      case 'e-wallet':
+                        icon = Icons.account_balance_wallet;
                         color = Colors.purple;
                         break;
                       case 'hutang / tempo':

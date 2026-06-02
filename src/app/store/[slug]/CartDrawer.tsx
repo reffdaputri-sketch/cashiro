@@ -11,6 +11,8 @@ interface CartDrawerProps {
   bankAccount: string;
   bankAccountName: string;
   qrisPayload: string | null;
+  isLocalCourierActive?: boolean;
+  localCourierFee?: number;
 }
 
 import { QRCodeCanvas } from 'qrcode.react';
@@ -20,7 +22,7 @@ function formatRupiah(num: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
 }
 
-export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload }: CartDrawerProps) {
+export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload, isLocalCourierActive = false, localCourierFee = 0 }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
@@ -54,9 +56,14 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
 
   useEffect(() => {
     if (step === 'checkout') {
-      fetchProvinces();
+      if (isLocalCourierActive) {
+        setShippingCost(localCourierFee);
+        setCourierName('Kurir Toko');
+      } else {
+        fetchProvinces();
+      }
     }
-  }, [step]);
+  }, [step, isLocalCourierActive, localCourierFee]);
 
   const fetchProvinces = async () => {
     setLoadingLocation(true);
@@ -137,23 +144,25 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
       setError('No. WhatsApp wajib diisi.');
       return;
     }
-    if (!selectedProvinceId) {
-      setError('Silakan pilih Provinsi.');
-      return;
-    }
-    if (!selectedCityId) {
-      setError('Silakan pilih Kota / Kabupaten.');
-      return;
-    }
-    if (!selectedDistrictId) {
-      setError('Silakan pilih Kecamatan.');
-      return;
+    if (!isLocalCourierActive) {
+      if (!selectedProvinceId) {
+        setError('Silakan pilih Provinsi.');
+        return;
+      }
+      if (!selectedCityId) {
+        setError('Silakan pilih Kota / Kabupaten.');
+        return;
+      }
+      if (!selectedDistrictId) {
+        setError('Silakan pilih Kecamatan.');
+        return;
+      }
     }
     if (!address.trim()) {
       setError('Alamat Lengkap wajib diisi.');
       return;
     }
-    if (storeCityId && totalWeight > 0 && shippingCost === 0) {
+    if (!isLocalCourierActive && storeCityId && totalWeight > 0 && shippingCost === 0) {
       setError('Silakan pilih kurir dan layanan pengiriman.');
       return;
     }
@@ -161,12 +170,14 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
     setLoading(true);
     setError('');
     try {
-      const prov = provinces.find(p => p.province_id === selectedProvinceId)?.province || '';
-      const city = cities.find(c => c.city_id === selectedCityId)?.city_name || '';
-      const cityType = cities.find(c => c.city_id === selectedCityId)?.type || '';
-      const dist = districts.find(d => d.district_id === selectedDistrictId)?.district_name || '';
-      
-      const fullAddress = `${address}, Kec. ${dist}, ${cityType} ${city}, Prov. ${prov}`;
+      let fullAddress = address;
+      if (!isLocalCourierActive) {
+        const prov = provinces.find(p => p.province_id === selectedProvinceId)?.province || '';
+        const city = cities.find(c => c.city_id === selectedCityId)?.city_name || '';
+        const cityType = cities.find(c => c.city_id === selectedCityId)?.type || '';
+        const dist = districts.find(d => d.district_id === selectedDistrictId)?.district_name || '';
+        fullAddress = `${address}, Kec. ${dist}, ${cityType} ${city}, Prov. ${prov}`;
+      }
 
       const payload = {
         customer_name: name,
@@ -296,7 +307,9 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             <label className="form-label">No. WhatsApp</label>
             <input className="form-input" placeholder="08xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} type="tel" />
 
-            <label className="form-label">Provinsi</label>
+            {!isLocalCourierActive && (
+              <>
+                <label className="form-label">Provinsi</label>
             <select
               className="form-input"
               value={selectedProvinceId}
@@ -360,12 +373,14 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
                 <option key={d.district_id} value={d.district_id}>{d.district_name}</option>
               ))}
             </select>
+              </>
+            )}
 
-            <label className="form-label">Alamat Lengkap (Jalan, RT/RW, No. Rumah)</label>
+            <label className="form-label">Alamat Lengkap {isLocalCourierActive ? '(Jalan, Patokan, RT/RW)' : '(Jalan, RT/RW, No. Rumah)'}</label>
             <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
 
             {/* RajaOngkir Shipping Cost */}
-            {storeCityId && totalWeight > 0 && selectedDistrictId && (
+            {!isLocalCourierActive && storeCityId && totalWeight > 0 && selectedDistrictId && (
               <div className="shipping-box">
                 <h4 className="shipping-title">Pengiriman (Total Berat: {totalWeight}g)</h4>
                 
@@ -421,6 +436,21 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {isLocalCourierActive && (
+              <div className="shipping-box">
+                <h4 className="shipping-title">Pengiriman: Kurir Toko</h4>
+                <div className="shipping-grid">
+                  <label className="courier-option active">
+                    <input type="radio" checked readOnly />
+                    <div className="courier-info">
+                      <span className="courier-service">Kurir Lokal (Flat)</span>
+                    </div>
+                    <span className="courier-price">{formatRupiah(localCourierFee)}</span>
+                  </label>
+                </div>
               </div>
             )}
 
@@ -496,7 +526,7 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
 
             <div className="btn-row">
               <button className="secondary-btn" onClick={() => setStep('cart')}>← Kembali</button>
-              <button className="primary-btn" onClick={handleOrder} disabled={loading || (totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedDistrictId !== '')}>
+              <button className="primary-btn" onClick={handleOrder} disabled={loading || (!isLocalCourierActive && totalWeight > 0 && storeCityId !== null && shippingCost === 0 && selectedDistrictId !== '')}>
                 {loading ? 'Memproses...' : 'Pesan Sekarang ✓'}
               </button>
             </div>

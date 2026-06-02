@@ -19,7 +19,8 @@ class AuthService {
   static const String KEY_BANK_ACCOUNT_NAME = 'bank_account_name';
   static const String KEY_QRIS_PAYLOAD = 'qris_payload';
   static const String KEY_BANNERS = 'banners';
-
+  static const String KEY_IS_LOCAL_COURIER_ACTIVE = 'is_local_courier_active';
+  static const String KEY_LOCAL_COURIER_FEE = 'local_courier_fee';
   Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(KEY_IS_REGISTERED) ?? false;
@@ -89,10 +90,12 @@ class AuthService {
       'bankAccountName': prefs.getString(KEY_BANK_ACCOUNT_NAME) ?? '',
       'qrisPayload': prefs.getString(KEY_QRIS_PAYLOAD) ?? '',
       'banners': prefs.getString(KEY_BANNERS) ?? '[]',
+      'isLocalCourierActive': prefs.getBool(KEY_IS_LOCAL_COURIER_ACTIVE)?.toString() ?? 'false',
+      'localCourierFee': prefs.getDouble(KEY_LOCAL_COURIER_FEE)?.toString() ?? '0.0',
     };
   }
 
-  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners}) async {
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
     await prefs.setString(KEY_OWNER_NAME, ownerName);
@@ -105,6 +108,8 @@ class AuthService {
     if (bankAccountName != null) await prefs.setString(KEY_BANK_ACCOUNT_NAME, bankAccountName);
     if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
     if (banners != null) await prefs.setString(KEY_BANNERS, jsonEncode(banners));
+    if (isLocalCourierActive != null) await prefs.setBool(KEY_IS_LOCAL_COURIER_ACTIVE, isLocalCourierActive);
+    if (localCourierFee != null) await prefs.setDouble(KEY_LOCAL_COURIER_FEE, localCourierFee);
   }
 
   Future<void> updatePin(String newPin) async {

@@ -240,6 +240,8 @@ class ApiService {
     String? bankAccountName,
     String? qrisPayload,
     List<String>? banners,
+    bool? isLocalCourierActive,
+    double? localCourierFee,
   }) async {
     try {
       final response = await http.post(
@@ -259,6 +261,8 @@ class ApiService {
           'bank_account_name': bankAccountName,
           'qris_payload': qrisPayload,
           if (banners != null) 'banners': banners,
+          if (isLocalCourierActive != null) 'is_local_courier_active': isLocalCourierActive,
+          if (localCourierFee != null) 'local_courier_fee': localCourierFee,
         }),
       );
 

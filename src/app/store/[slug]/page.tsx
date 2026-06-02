@@ -15,6 +15,8 @@ interface SellerData {
     bank_account_name: string;
     qris_payload: string | null;
     banners: string[];
+    is_local_courier_active: boolean;
+    local_courier_fee: number;
   };
   products: {
     id: number;

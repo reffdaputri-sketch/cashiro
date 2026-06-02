@@ -38,6 +38,8 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   List<String> _currentBanners = [];
   List<File> _newBannerFiles = [];
   bool _isUploadingBanners = false;
+  bool _isLocalCourierActive = false;
+  late TextEditingController _localCourierFeeController;
 
   @override
   void initState() {
@@ -53,6 +55,8 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _bankAccountNameController = TextEditingController(text: info['bankAccountName'] ?? '');
     _qrisPayloadController = TextEditingController(text: info['qrisPayload'] ?? '');
     _currentImagePath = info['imagePath'];
+    _isLocalCourierActive = info['isLocalCourierActive'] == 'true';
+    _localCourierFeeController = TextEditingController(text: info['localCourierFee'] ?? '0.0');
     
     final cityIdStr = info['cityId'];
     if (cityIdStr != null && cityIdStr.isNotEmpty) {
@@ -129,6 +133,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _bankAccountController.dispose();
     _bankAccountNameController.dispose();
     _qrisPayloadController.dispose();
+    _localCourierFeeController.dispose();
     super.dispose();
   }
 
@@ -190,6 +195,8 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         bankAccountName: _bankAccountNameController.text,
         qrisPayload: _qrisPayloadController.text,
         banners: finalBanners,
+        isLocalCourierActive: _isLocalCourierActive,
+        localCourierFee: double.tryParse(_localCourierFeeController.text) ?? 0.0,
       );
       if (mounted) {
         setState(() => _isUploadingBanners = false);
@@ -487,6 +494,25 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                   hint: _selectedCityId != null && _cities.isEmpty 
                       ? Text('Kota ID: $_selectedCityId (Pilih ulang provinsi)') 
                       : null,
+                ),
+              const SizedBox(height: 24),
+              const Text('Pengaturan Kurir Lokal', style: TextStyle(fontWeight: FontWeight.bold)),
+              SwitchListTile(
+                title: const Text('Aktifkan Kurir Lokal'),
+                subtitle: const Text('Jika aktif, kurir RajaOngkir akan disembunyikan di Toko Online.'),
+                value: _isLocalCourierActive,
+                onChanged: (bool value) {
+                  setState(() {
+                    _isLocalCourierActive = value;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_isLocalCourierActive)
+                TextFormField(
+                  controller: _localCourierFeeController,
+                  decoration: const InputDecoration(labelText: 'Biaya Kurir Lokal (Rp)', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
                 ),
               const SizedBox(height: 24),
               const Text('Informasi Rekening Bank (Untuk Pembayaran Online)', style: TextStyle(fontWeight: FontWeight.bold)),
