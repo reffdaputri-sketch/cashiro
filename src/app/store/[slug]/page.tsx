@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import StorePage from './StorePage';
 
 interface SellerData {
@@ -58,5 +59,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const data = await getSellerData(slug);
   if (!data) notFound();
-  return <StorePage data={data} slug={slug} />;
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'sans-serif' }}>Memuat Toko...</div>}>
+      <StorePage data={data} slug={slug} />
+    </Suspense>
+  );
 }

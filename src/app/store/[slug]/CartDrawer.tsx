@@ -16,6 +16,7 @@ interface CartDrawerProps {
   storeLat?: number | null;
   storeLng?: number | null;
   maxDeliveryRadius?: number;
+  tableParam?: string;
 }
 
 import { QRCodeCanvas } from 'qrcode.react';
@@ -38,7 +39,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return d;
 }
 
-export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload, isLocalCourierActive = false, localCourierFee = 0, storeLat, storeLng, maxDeliveryRadius }: CartDrawerProps) {
+export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankAccount, bankAccountName, qrisPayload, isLocalCourierActive = false, localCourierFee = 0, storeLat, storeLng, maxDeliveryRadius, tableParam = '' }: CartDrawerProps) {
   const { items, removeItem, updateQty, clearCart, total, count } = useCart();
   const [step, setStep] = useState<'cart' | 'checkout' | 'success' | 'qris'>('cart');
   const [name, setName] = useState('');
@@ -51,6 +52,10 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
   const [orderId, setOrderId] = useState<number | null>(null);
   const [waLink, setWaLink] = useState('');
   const [savedTotal, setSavedTotal] = useState(0);
+
+  // Dine-in State
+  const [orderType, setOrderType] = useState<'delivery' | 'dine_in'>(tableParam ? 'dine_in' : 'delivery');
+  const [tableNumber, setTableNumber] = useState(tableParam || '');
 
   // Shipping State
   const [provinces, setProvinces] = useState<any[]>([]);
@@ -74,15 +79,27 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
   console.log('CartDrawer values:', { storeCityId, totalWeight, selectedDistrictId, step });
 
   useEffect(() => {
+    if (tableParam) {
+      setOrderType('dine_in');
+      setTableNumber(tableParam);
+      setCourierName(`Dine-in (Meja ${tableParam})`);
+      setShippingCost(0);
+    }
+  }, [tableParam]);
+
+  useEffect(() => {
     if (step === 'checkout') {
-      if (isLocalCourierActive) {
+      if (orderType === 'dine_in') {
+        setShippingCost(0);
+        setCourierName(`Dine-in (Meja ${tableNumber})`);
+      } else if (isLocalCourierActive) {
         setShippingCost(localCourierFee);
         setCourierName('Kurir Toko');
       } else {
         fetchProvinces();
       }
     }
-  }, [step, isLocalCourierActive, localCourierFee]);
+  }, [step, isLocalCourierActive, localCourierFee, orderType, tableNumber]);
 
   const fetchProvinces = async () => {
     setLoadingLocation(true);
@@ -183,52 +200,53 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
 
   const handleOrder = async () => {
     if (!name.trim()) {
-      setError('Nama Pemesan wajib diisi.');
+      setError('Nama Lengkap wajib diisi.');
       return;
     }
     if (!phone.trim()) {
       setError('No. WhatsApp wajib diisi.');
       return;
     }
-    if (!isLocalCourierActive) {
-      if (!selectedProvinceId) {
-        setError('Silakan pilih Provinsi.');
-        return;
-      }
-      if (!selectedCityId) {
-        setError('Silakan pilih Kota / Kabupaten.');
-        return;
-      }
-      if (!selectedDistrictId) {
-        setError('Silakan pilih Kecamatan.');
+
+    if (orderType === 'dine_in') {
+      if (!tableNumber.trim()) {
+        setError('Nomor Meja wajib diisi.');
         return;
       }
     } else {
-      if (maxDeliveryRadius && maxDeliveryRadius > 0) {
-        if (buyerLat === null || buyerLng === null) {
-          setError('Silakan Ambil Lokasi Pengiriman (GPS) Anda terlebih dahulu karena toko ini membatasi radius pengiriman.');
+      if (isLocalCourierActive) {
+        if (!buyerLat || !buyerLng) {
+          setError('Harap tentukan titik lokasi Anda pada peta.');
           return;
         }
-        if (distanceKm !== null && distanceKm > maxDeliveryRadius) {
-          setError(`Lokasi Anda (${distanceKm.toFixed(1)} km) berada di luar jangkauan kurir lokal (Maks ${maxDeliveryRadius} km).`);
-          return;
+        if (maxDeliveryRadius !== undefined && maxDeliveryRadius > 0) {
+          if (distanceKm === null) {
+            setError('Gagal menghitung jarak lokasi Anda.');
+            return;
+          }
+          if (distanceKm !== null && distanceKm > maxDeliveryRadius) {
+            setError(`Lokasi Anda (${distanceKm.toFixed(1)} km) berada di luar jangkauan kurir lokal (Maks ${maxDeliveryRadius} km).`);
+            return;
+          }
         }
       }
-    }
-    if (!address.trim()) {
-      setError('Alamat Lengkap wajib diisi.');
-      return;
-    }
-    if (!isLocalCourierActive && storeCityId && totalWeight > 0 && shippingCost === 0) {
-      setError('Silakan pilih kurir dan layanan pengiriman.');
-      return;
+      if (!address.trim()) {
+        setError('Alamat Lengkap wajib diisi.');
+        return;
+      }
+      if (!isLocalCourierActive && storeCityId && totalWeight > 0 && shippingCost === 0) {
+        setError('Silakan pilih kurir dan layanan pengiriman.');
+        return;
+      }
     }
 
     setLoading(true);
     setError('');
     try {
       let fullAddress = address;
-      if (!isLocalCourierActive) {
+      if (orderType === 'dine_in') {
+        fullAddress = `Dine-in (Makan di Tempat) - Meja ${tableNumber}`;
+      } else if (!isLocalCourierActive) {
         const prov = provinces.find(p => p.province_id === selectedProvinceId)?.province || '';
         const city = cities.find(c => c.city_id === selectedCityId)?.city_name || '';
         const cityType = cities.find(c => c.city_id === selectedCityId)?.type || '';
@@ -245,6 +263,8 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
         shipping_cost: shippingCost,
         courier_name: courierName,
         items: items.map(i => ({ product_id: i.product_id, qty: i.qty })),
+        order_type: orderType,
+        table_number: tableNumber,
       };
 
       const res = await fetch(`/api/sellers/${slug}/orders`, {
@@ -273,7 +293,29 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
         if (paymentMethod === 'transfer') paymentStr = 'Transfer Bank';
         if (paymentMethod === 'qris') paymentStr = 'QRIS';
 
-        const waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
+        let waMessage = '';
+        if (orderType === 'dine_in') {
+          waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
+Nama: ${name || 'Anonim'}
+No. HP: ${phone || '-'}
+Tipe Pesanan: Makan di Tempat (Dine-in)
+Nomor Meja: ${tableNumber}
+
+*Pesanan:*
+${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
+
+Catatan: ${notes || '-'}
+*Grand Total: ${formatRupiah(total + shippingCost)}*
+Metode Pembayaran: ${paymentStr}
+
+${paymentMethod === 'transfer' && data.seller_bank_name ? `*Rekening Tujuan Transfer:*
+Bank: ${data.seller_bank_name}
+No. Rekening: ${data.seller_bank_account}
+Atas Nama: ${data.seller_bank_account_name}
+
+Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'}`;
+        } else {
+          waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
 Nama: ${name || 'Anonim'}
 No. HP: ${phone || '-'}
 Alamat: ${fullAddress || '-'}
@@ -292,6 +334,7 @@ No. Rekening: ${data.seller_bank_account}
 Atas Nama: ${data.seller_bank_account_name}
 
 Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'}`;
+        }
         
         setWaLink(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(waMessage)}`);
       }
@@ -364,171 +407,236 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             <label className="form-label">No. WhatsApp</label>
             <input className="form-input" placeholder="08xxxxxxxxxx" value={phone} onChange={e => setPhone(e.target.value)} type="tel" />
 
-            {!isLocalCourierActive && (
-              <>
-                <label className="form-label">Provinsi</label>
-            <select
-              className="form-input"
-              value={selectedProvinceId}
-              onChange={(e) => {
-                setSelectedProvinceId(e.target.value);
-                setSelectedCityId('');
-                setCities([]);
-                setSelectedDistrictId('');
-                setDistricts([]);
-                setSelectedCourier('');
-                setCouriers([]);
-                setShippingCost(0);
-                setCourierName('');
-                if (e.target.value) fetchCities(e.target.value);
-              }}
-              disabled={loadingLocation}
-            >
-              <option value="">-- Pilih Provinsi --</option>
-              {provinces.map((p) => (
-                <option key={p.province_id} value={p.province_id}>{p.province}</option>
-              ))}
-            </select>
-
-            <label className="form-label">Kota / Kabupaten</label>
-            <select
-              className="form-input"
-              value={selectedCityId}
-              onChange={(e) => {
-                setSelectedCityId(e.target.value);
-                setSelectedDistrictId('');
-                setDistricts([]);
-                setSelectedCourier('');
-                setCouriers([]);
-                setShippingCost(0);
-                setCourierName('');
-                if (e.target.value) fetchDistricts(e.target.value);
-              }}
-              disabled={!selectedProvinceId || loadingLocation}
-            >
-              <option value="">-- Pilih Kota/Kab --</option>
-              {cities.map((c) => (
-                <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
-              ))}
-            </select>
-
-            <label className="form-label">Kecamatan</label>
-            <select
-              className="form-input"
-              value={selectedDistrictId}
-              onChange={(e) => {
-                setSelectedDistrictId(e.target.value);
-                setSelectedCourier('');
-                setCouriers([]);
-                setShippingCost(0);
-                setCourierName('');
-              }}
-              disabled={!selectedCityId || loadingLocation}
-            >
-              <option value="">-- Pilih Kecamatan --</option>
-              {districts.map((d) => (
-                <option key={d.district_id} value={d.district_id}>{d.district_name}</option>
-              ))}
-            </select>
-              </>
-            )}
-
-            <label className="form-label">Alamat Lengkap {isLocalCourierActive ? '(Jalan, Patokan, RT/RW)' : '(Jalan, RT/RW, No. Rumah)'}</label>
-            <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
-
-            {/* RajaOngkir Shipping Cost */}
-            {!isLocalCourierActive && storeCityId && totalWeight > 0 && selectedDistrictId && (
-              <div className="shipping-box">
-                <h4 className="shipping-title">Pengiriman (Total Berat: {totalWeight}g)</h4>
-                
-                <div className="shipping-grid">
-                  <select
-                    className="form-input"
-                    value={selectedCourier}
-                    onChange={(e) => {
-                      setSelectedCourier(e.target.value);
-                      if (e.target.value) calculateShipping(selectedDistrictId, e.target.value);
-                      else {
-                        setCouriers([]);
+            {/* Tipe Pesanan Selector */}
+            {tableParam ? (
+              <div className="shipping-box" style={{ marginBottom: 16, border: '1px solid #10b981', background: '#ecfdf5', padding: '12px', borderRadius: '8px' }}>
+                <p style={{ fontSize: 13, color: '#047857', fontWeight: 'bold', margin: 0 }}>
+                  🍽️ Makan di Tempat (Dine-in) - Meja {tableNumber}
+                </p>
+                <p style={{ fontSize: 11, color: '#065f46', margin: '4px 0 0 0' }}>
+                  Nomor meja terdeteksi dari QR Code.
+                </p>
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                <label className="form-label">Tipe Pesanan</label>
+                <div className="payment-options" style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className={`payment-option ${orderType === 'dine_in' ? 'active' : ''}`}
+                    onClick={() => {
+                      setOrderType('dine_in');
+                      setShippingCost(0);
+                      setCourierName(`Dine-in (Meja ${tableNumber})`);
+                    }}
+                    style={{ flex: 1, padding: '10px', fontSize: '13px' }}
+                  >
+                    🍽️ Makan di Tempat
+                  </button>
+                  <button
+                    className={`payment-option ${orderType === 'delivery' ? 'active' : ''}`}
+                    onClick={() => {
+                      setOrderType('delivery');
+                      if (isLocalCourierActive) {
+                        setShippingCost(localCourierFee);
+                        setCourierName('Kurir Toko');
+                      } else {
                         setShippingCost(0);
                         setCourierName('');
                       }
                     }}
+                    style={{ flex: 1, padding: '10px', fontSize: '13px' }}
                   >
-                    <option value="">-- Pilih Kurir --</option>
-                    <option value="jne">JNE</option>
-                    <option value="jnt">J&T Express</option>
-                    <option value="sicepat">SiCepat</option>
-                    <option value="anteraja">AnterAja</option>
-                    <option value="pos">POS Indonesia</option>
-                    <option value="tiki">TIKI</option>
-                    <option value="wahana">Wahana</option>
-                  </select>
+                    🛵 Kirim / Delivery
+                  </button>
                 </div>
-
-                {loadingShipping && <p className="loading-text">Sedang menghitung ongkos kirim...</p>}
-
-                {couriers.length > 0 && (
-                  <div className="courier-list">
-                    {couriers.map((c, idx) => {
-                      const isSelected = courierName === `${selectedCourier.toUpperCase()} ${c.service}`;
-                      return (
-                        <label key={idx} className={`courier-option ${isSelected ? 'active' : ''}`}>
-                          <input
-                            type="radio"
-                            name="shipping_service"
-                            checked={isSelected}
-                            onChange={() => {
-                              setShippingCost(c.cost[0].value);
-                              setCourierName(`${selectedCourier.toUpperCase()} ${c.service}`);
-                            }}
-                          />
-                          <div className="courier-info">
-                            <span className="courier-service">{selectedCourier.toUpperCase()} - {c.service}</span>
-                            <span className="courier-etd">Estimasi: {c.cost[0].etd} hari</span>
-                          </div>
-                          <span className="courier-price">{formatRupiah(c.cost[0].value)}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             )}
 
-            {isLocalCourierActive && (
-              <div className="shipping-box">
-                <h4 className="shipping-title">Pengiriman: Kurir Toko</h4>
-                <div className="shipping-grid">
-                  <label className="courier-option active">
-                    <input type="radio" checked readOnly />
-                    <div className="courier-info">
-                      <span className="courier-service">Kurir Lokal (Flat)</span>
-                    </div>
-                    <span className="courier-price">{formatRupiah(localCourierFee)}</span>
-                  </label>
-                </div>
-                {maxDeliveryRadius !== undefined && maxDeliveryRadius > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <p style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
-                      Toko ini menerapkan batas jarak pengiriman maksimal {maxDeliveryRadius} km.
-                    </p>
-                    <button 
-                      className="secondary-btn" 
-                      onClick={getBuyerLocation}
-                      style={{ padding: '8px 12px', fontSize: 13, width: 'auto' }}
+            {/* Nomor Meja Input (hanya jika Dine-in dan tidak dipaksa oleh QR) */}
+            {orderType === 'dine_in' && !tableParam && (
+              <div style={{ marginBottom: 16 }}>
+                <label className="form-label">Nomor Meja</label>
+                <input
+                  className="form-input"
+                  placeholder="Contoh: 05, 12, VIP-1"
+                  value={tableNumber}
+                  onChange={(e) => {
+                    setTableNumber(e.target.value);
+                    setCourierName(`Dine-in (Meja ${e.target.value})`);
+                  }}
+                />
+              </div>
+            )}
+
+            {orderType === 'delivery' && (
+              <>
+                {!isLocalCourierActive && (
+                  <>
+                    <label className="form-label">Provinsi</label>
+                    <select
+                      className="form-input"
+                      value={selectedProvinceId}
+                      onChange={(e) => {
+                        setSelectedProvinceId(e.target.value);
+                        setSelectedCityId('');
+                        setCities([]);
+                        setSelectedDistrictId('');
+                        setDistricts([]);
+                        setSelectedCourier('');
+                        setCouriers([]);
+                        setShippingCost(0);
+                        setCourierName('');
+                        if (e.target.value) fetchCities(e.target.value);
+                      }}
                       disabled={loadingLocation}
                     >
-                      {loadingLocation ? 'Mendeteksi...' : '📍 Ambil Lokasi Saya (GPS)'}
-                    </button>
-                    {distanceKm !== null && (
-                      <p style={{ fontSize: 13, marginTop: 8, color: distanceKm > maxDeliveryRadius ? '#dc2626' : '#059669', fontWeight: 'bold' }}>
-                        Jarak Anda: {distanceKm.toFixed(1)} km {distanceKm > maxDeliveryRadius ? '(Di Luar Jangkauan)' : '(Dalam Jangkauan)'}
-                      </p>
+                      <option value="">-- Pilih Provinsi --</option>
+                      {provinces.map((p) => (
+                        <option key={p.province_id} value={p.province_id}>{p.province}</option>
+                      ))}
+                    </select>
+
+                    <label className="form-label">Kota / Kabupaten</label>
+                    <select
+                      className="form-input"
+                      value={selectedCityId}
+                      onChange={(e) => {
+                        setSelectedCityId(e.target.value);
+                        setSelectedDistrictId('');
+                        setDistricts([]);
+                        setSelectedCourier('');
+                        setCouriers([]);
+                        setShippingCost(0);
+                        setCourierName('');
+                        if (e.target.value) fetchDistricts(e.target.value);
+                      }}
+                      disabled={!selectedProvinceId || loadingLocation}
+                    >
+                      <option value="">-- Pilih Kota/Kab --</option>
+                      {cities.map((c) => (
+                        <option key={c.city_id} value={c.city_id}>{c.type} {c.city_name}</option>
+                      ))}
+                    </select>
+
+                    <label className="form-label">Kecamatan</label>
+                    <select
+                      className="form-input"
+                      value={selectedDistrictId}
+                      onChange={(e) => {
+                        setSelectedDistrictId(e.target.value);
+                        setSelectedCourier('');
+                        setCouriers([]);
+                        setShippingCost(0);
+                        setCourierName('');
+                      }}
+                      disabled={!selectedCityId || loadingLocation}
+                    >
+                      <option value="">-- Pilih Kecamatan --</option>
+                      {districts.map((d) => (
+                        <option key={d.district_id} value={d.district_id}>{d.district_name}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                <label className="form-label">Alamat Lengkap {isLocalCourierActive ? '(Jalan, Patokan, RT/RW)' : '(Jalan, RT/RW, No. Rumah)'}</label>
+                <textarea className="form-input" placeholder="Alamat lengkap..." value={address} onChange={e => setAddress(e.target.value)} rows={2} />
+
+                {/* RajaOngkir Shipping Cost */}
+                {!isLocalCourierActive && storeCityId && totalWeight > 0 && selectedDistrictId && (
+                  <div className="shipping-box">
+                    <h4 className="shipping-title">Pengiriman (Total Berat: {totalWeight}g)</h4>
+                    
+                    <div className="shipping-grid">
+                      <select
+                        className="form-input"
+                        value={selectedCourier}
+                        onChange={(e) => {
+                          setSelectedCourier(e.target.value);
+                          if (e.target.value) calculateShipping(selectedDistrictId, e.target.value);
+                          else {
+                            setCouriers([]);
+                            setShippingCost(0);
+                            setCourierName('');
+                          }
+                        }}
+                      >
+                        <option value="">-- Pilih Kurir --</option>
+                        <option value="jne">JNE</option>
+                        <option value="jnt">J&T Express</option>
+                        <option value="sicepat">SiCepat</option>
+                        <option value="anteraja">AnterAja</option>
+                        <option value="pos">POS Indonesia</option>
+                        <option value="tiki">TIKI</option>
+                        <option value="wahana">Wahana</option>
+                      </select>
+                    </div>
+
+                    {loadingShipping && <p className="loading-text">Sedang menghitung ongkos kirim...</p>}
+
+                    {couriers.length > 0 && (
+                      <div className="courier-list">
+                        {couriers.map((c, idx) => {
+                          const isSelected = courierName === `${selectedCourier.toUpperCase()} ${c.service}`;
+                          return (
+                            <label key={idx} className={`courier-option ${isSelected ? 'active' : ''}`}>
+                              <input
+                                type="radio"
+                                name="shipping_service"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setShippingCost(c.cost[0].value);
+                                  setCourierName(`${selectedCourier.toUpperCase()} ${c.service}`);
+                                }}
+                              />
+                              <div className="courier-info">
+                                <span className="courier-service">{selectedCourier.toUpperCase()} - {c.service}</span>
+                                <span className="courier-etd">Estimasi: {c.cost[0].etd} hari</span>
+                              </div>
+                              <span className="courier-price">{formatRupiah(c.cost[0].value)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
+
+                {isLocalCourierActive && (
+                  <div className="shipping-box">
+                    <h4 className="shipping-title">Pengiriman: Kurir Toko</h4>
+                    <div className="shipping-grid">
+                      <label className="courier-option active">
+                        <input type="radio" checked readOnly />
+                        <div className="courier-info">
+                          <span className="courier-service">Kurir Lokal (Flat)</span>
+                        </div>
+                        <span className="courier-price">{formatRupiah(localCourierFee)}</span>
+                      </label>
+                    </div>
+                    {maxDeliveryRadius !== undefined && maxDeliveryRadius > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <p style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>
+                          Toko ini menerapkan batas jarak pengiriman maksimal {maxDeliveryRadius} km.
+                        </p>
+                        <button 
+                          className="secondary-btn" 
+                          onClick={getBuyerLocation}
+                          style={{ padding: '8px 12px', fontSize: 13, width: 'auto' }}
+                          disabled={loadingLocation}
+                        >
+                          {loadingLocation ? 'Mendeteksi...' : '📍 Ambil Lokasi Saya (GPS)'}
+                        </button>
+                        {distanceKm !== null && (
+                          <p style={{ fontSize: 13, marginTop: 8, color: distanceKm > maxDeliveryRadius ? '#dc2626' : '#059669', fontWeight: 'bold' }}>
+                            Jarak Anda: {distanceKm.toFixed(1)} km {distanceKm > maxDeliveryRadius ? '(Di Luar Jangkauan)' : '(Dalam Jangkauan)'}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             <label className="form-label">Catatan (Opsional)</label>

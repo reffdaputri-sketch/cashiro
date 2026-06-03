@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CartProvider, useCart } from '@/lib/cart-context';
+import { useSearchParams } from 'next/navigation';
 import CartDrawer from './CartDrawer';
 
 interface Product {
@@ -123,6 +124,8 @@ function StoreContent({ data, slug }: { data: SellerData; slug: string }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Semua');
+  const searchParams = useSearchParams();
+  const tableParam = searchParams.get('table') || '';
 
   // Build unique category list from products
   const categories = ['Semua', ...Array.from(new Set(
@@ -213,7 +216,7 @@ function StoreContent({ data, slug }: { data: SellerData; slug: string }) {
       )}
 
       {/* Cart Drawer */}
-      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} bankName={data.seller.bank_name} bankAccount={data.seller.bank_account} bankAccountName={data.seller.bank_account_name} qrisPayload={data.seller.qris_payload} isLocalCourierActive={data.seller.is_local_courier_active} localCourierFee={data.seller.local_courier_fee} storeLat={data.seller.store_lat} storeLng={data.seller.store_lng} maxDeliveryRadius={data.seller.max_delivery_radius} />}
+      {cartOpen && <CartDrawer slug={slug} onClose={() => setCartOpen(false)} storeCityId={data.seller.city_id} bankName={data.seller.bank_name} bankAccount={data.seller.bank_account} bankAccountName={data.seller.bank_account_name} qrisPayload={data.seller.qris_payload} isLocalCourierActive={data.seller.is_local_courier_active} localCourierFee={data.seller.local_courier_fee} storeLat={data.seller.store_lat} storeLng={data.seller.store_lng} maxDeliveryRadius={data.seller.max_delivery_radius} tableParam={tableParam} />}
 
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">

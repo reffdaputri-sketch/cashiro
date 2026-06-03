@@ -173,4 +173,22 @@ class SyncService {
       rethrow;
     }
   }
+
+  /// Counts the total number of unsynced rows across all local tables
+  Future<int> countUnsyncedChanges() async {
+    final db = await _dbService.database;
+    int total = 0;
+    for (final table in _syncTables) {
+      try {
+        final count = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM $table WHERE is_synced = 0'),
+        );
+        total += count ?? 0;
+      } catch (e) {
+        debugPrint('Sync: Error counting unsynced rows in $table: $e');
+      }
+    }
+    return total;
+  }
 }
+

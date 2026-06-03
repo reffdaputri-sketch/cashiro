@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/services/database_service.dart';
 import 'package:mobile/providers/shift_provider.dart';
+import 'package:mobile/services/receipt_service.dart';
 
 class OnlineStoreScreen extends StatefulWidget {
   const OnlineStoreScreen({super.key});
@@ -326,6 +327,9 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                 final createdAt = o['created_at'] != null
                     ? DateFormat('dd MMM yy, HH:mm').format(DateTime.parse(o['created_at']).toLocal())
                     : '-';
+                final isDineIn = o['order_type'] == 'dine_in';
+                final tableNum = o['table_number'] != null ? o['table_number'].toString() : null;
+
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -338,6 +342,23 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                           Row(children: [
                             Expanded(child: Text('#${o['id']} · ${o['customer_name']?.isNotEmpty == true ? o['customer_name'] : 'Anonim'}',
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                            if (isDineIn && tableNum != null)
+                              Container(
+                                margin: const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '🍽️ Meja $tableNum',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange.shade800,
+                                  ),
+                                ),
+                              ),
                             _statusChip(status),
                           ]),
                           if ((o['customer_phone'] ?? '').isNotEmpty) ...[
@@ -456,6 +477,24 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  const Text('Tipe Pesanan', style: TextStyle(color: Colors.grey)),
+                  Text(o['order_type'] == 'dine_in' ? '🍽️ Makan di Tempat (Dine-in)' : '🛵 Kirim / Delivery', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              if (o['order_type'] == 'dine_in' && o['table_number'] != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Nomor Meja', style: TextStyle(color: Colors.grey)),
+                    Text('Meja ${o['table_number']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   const Text('Waktu', style: TextStyle(color: Colors.grey)),
                   Text(createdAt, style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
@@ -510,6 +549,45 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                   ],
                 ),
               ],
+              
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final receiptService = ReceiptService();
+                    final auth = Provider.of<AuthProvider>(context, listen: false);
+                    final storeInfo = auth.storeInfo;
+                    
+                    final rawItems = o['items'] as List? ?? [];
+                    final List<Map<String, dynamic>> itemsToPrint = rawItems.map((item) {
+                      return {
+                        'name': item['name'] ?? '',
+                        'quantity': (item['qty'] as num?)?.toInt() ?? 1,
+                        'price': (item['price'] as num?)?.toDouble() ?? 0.0,
+                        'total': (item['total'] as num?)?.toDouble() ?? 0.0,
+                        'discount': (item['discount'] as num?)?.toDouble() ?? 0.0,
+                      };
+                    }).toList();
+
+                    await receiptService.printReceipt(
+                      storeInfo,
+                      o['id'] as int? ?? 0,
+                      (o['total_amount'] as num?)?.toDouble() ?? 0.0,
+                      (o['total_amount'] as num?)?.toDouble() ?? 0.0,
+                      0.0,
+                      itemsToPrint,
+                      paymentMethod: method == 'qris' ? 'QRIS' : 'Manual',
+                    );
+                  },
+                  icon: const Icon(Icons.print),
+                  label: const Text('Cetak Tiket Dapur / Struk'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
 
               if (notes.isNotEmpty) ...[
                 const SizedBox(height: 16),

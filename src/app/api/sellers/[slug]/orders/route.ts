@@ -6,7 +6,7 @@ import crypto from 'crypto';
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
-    const { customer_name, customer_phone, customer_address, items, payment_method, notes, shipping_cost, courier_name } = await req.json();
+    const { customer_name, customer_phone, customer_address, items, payment_method, notes, shipping_cost, courier_name, order_type, table_number } = await req.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Items pesanan tidak boleh kosong' }, { status: 400 });
@@ -90,6 +90,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         payment_url: paymentUrl,
         merchant_order_id: merchantOrderId,
         notes: notes || '',
+        order_type: order_type || 'delivery',
+        table_number: table_number || null,
       })
       .select('id, status, total_amount, payment_url')
       .single();
