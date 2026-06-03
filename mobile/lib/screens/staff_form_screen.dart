@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/staff_provider.dart';
 import 'package:mobile/models/staff.dart';
+import 'package:mobile/providers/auth_provider.dart';
+import 'package:mobile/screens/purchase_license_screen.dart';
 
 class StaffFormScreen extends StatefulWidget {
   final Staff? staff;
@@ -55,7 +57,46 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
     super.dispose();
   }
 
+  void _showDemoLockedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Fitur Terkunci'),
+          ],
+        ),
+        content: const Text(
+          'Anda sedang menggunakan Akun Demo. Untuk dapat mengelola data staf Anda sendiri, silakan beli lisensi Cashiro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Nanti Saja'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseLicenseScreen()),
+              );
+            },
+            child: const Text('Beli Lisensi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _save() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isDemo) {
+      _showDemoLockedDialog();
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       final List<String> selectedPermissions = _permissions.entries
           .where((e) => e.value)
@@ -149,6 +190,11 @@ class _StaffFormScreenState extends State<StaffFormScreen> {
   }
 
   void _confirmDelete() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isDemo) {
+      _showDemoLockedDialog();
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

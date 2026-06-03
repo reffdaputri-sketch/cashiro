@@ -4,6 +4,8 @@ import 'package:mobile/providers/product_provider.dart';
 import 'package:mobile/models/product.dart';
 import 'package:mobile/models/product_variation.dart';
 import 'package:mobile/screens/scanner_screen.dart'; // Import Scanner
+import 'package:mobile/providers/auth_provider.dart';
+import 'package:mobile/screens/purchase_license_screen.dart';
 
 import 'dart:io';
 import 'dart:math';
@@ -93,6 +95,11 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              if (auth.isDemo) {
+                _showDemoLockedDialog();
+                return;
+              }
               final name = controller.text.trim();
               if (name.isNotEmpty) {
                 final db = await db_service.DatabaseService().database;
@@ -251,7 +258,47 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     );
   }
 
+  void _showDemoLockedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Fitur Terkunci'),
+          ],
+        ),
+        content: const Text(
+          'Anda sedang menggunakan Akun Demo. Untuk dapat menambah/mengedit produk dan profil toko Anda sendiri, silakan beli lisensi Cashiro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Nanti Saja'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseLicenseScreen()),
+              );
+            },
+            child: const Text('Beli Lisensi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _save() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isDemo) {
+      _showDemoLockedDialog();
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       final product = Product(
         id: widget.product?.id,

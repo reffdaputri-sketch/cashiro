@@ -19,6 +19,7 @@ class AuthProvider with ChangeNotifier {
   bool get cloudSyncEnabled => _cloudSyncEnabled;
   Staff? get currentStaff => _currentStaff;
   bool get isOwner => _isAuthenticated && _currentStaff == null;
+  bool get isDemo => _storeInfo['storeId'] == 'DEMO-STORE-ID';
   Map<String, String> get storeInfo => _storeInfo;
 
   Future<void> checkRegistration() async {

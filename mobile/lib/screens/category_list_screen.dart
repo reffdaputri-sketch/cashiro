@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/database_service.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/category_provider.dart';
+import 'package:mobile/providers/auth_provider.dart';
+import 'package:mobile/screens/purchase_license_screen.dart';
 
 class CategoryListScreen extends StatefulWidget {
   const CategoryListScreen({super.key});
@@ -22,7 +24,46 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     });
   }
 
+  void _showDemoLockedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Fitur Terkunci'),
+          ],
+        ),
+        content: const Text(
+          'Anda sedang menggunakan Akun Demo. Untuk dapat mengelola kategori produk Anda sendiri, silakan beli lisensi Cashiro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Nanti Saja'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseLicenseScreen()),
+              );
+            },
+            child: const Text('Beli Lisensi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _deleteCategory(int id) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isDemo) {
+      _showDemoLockedDialog();
+      return;
+    }
     try {
       await Provider.of<CategoryProvider>(context, listen: false).deleteCategory(id);
       if (mounted) {
@@ -55,6 +96,11 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              if (auth.isDemo) {
+                _showDemoLockedDialog();
+                return;
+              }
               if (nameController.text.isNotEmpty) {
                 final db = await DatabaseService().database;
                 try {

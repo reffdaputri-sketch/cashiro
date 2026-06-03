@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile/services/api_service.dart';
 import 'package:mobile/screens/qris_scanner_screen.dart';
 import 'dart:convert';
+import 'package:mobile/screens/purchase_license_screen.dart';
 
 
 class EditStoreScreen extends StatefulWidget {
@@ -168,11 +169,49 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
 
 
 
+  void _showDemoLockedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Fitur Terkunci'),
+          ],
+        ),
+        content: const Text(
+          'Anda sedang menggunakan Akun Demo. Untuk dapat mengubah profil toko Anda sendiri, silakan beli lisensi Cashiro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Nanti Saja'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseLicenseScreen()),
+              );
+            },
+            child: const Text('Beli Lisensi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isDemo) {
+      _showDemoLockedDialog();
+      return;
+    }
     if (_formKey.currentState!.validate()) {
       setState(() => _isUploadingBanners = true);
       
-      final auth = Provider.of<AuthProvider>(context, listen: false);
       final info = auth.storeInfo;
       final storeId = info['storeId'] ?? '';
       final licenseKey = info['licenseKey'] ?? '';
