@@ -232,7 +232,7 @@ class _PurchaseLicenseScreenState extends State<PurchaseLicenseScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: _inquiryPayment,
-                        child: const Text('Beli Lisensi (Duitku Rp 50.000)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: const Text('Beli Lisensi (Duitku Rp 25.000)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 16),

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     // Cek reseller jika ada slug
     let resellerId: number | null = null;
     let commission: number = 0;
-    let paymentAmount = 50000; // Default harga jika tidak via reseller
+    let paymentAmount = 25000; // Default harga jika tidak via reseller
 
     if (reseller_slug) {
       const { data: reseller, error: rErr } = await supabase
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       store_name,
       reseller_id: resellerId,
       commission,
-      base_price: resellerId ? (paymentAmount - commission) : 50000,
+      base_price: resellerId ? (paymentAmount - commission) : 25000,
     });
 
     const payload = {
