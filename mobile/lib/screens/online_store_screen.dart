@@ -137,15 +137,24 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
 
             if (o['items'] is List) {
               for (var item in o['items']) {
-                final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [item['product_id']]);
+                final productId = item['product_id'];
+                final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [productId]);
                 double cost = 0.0;
-                if (productRows.isNotEmpty) {
+                if (productRows.isEmpty) {
+                  await txn.insert('products', {
+                    'id': productId,
+                    'name': item['name'] ?? 'Produk Toko Online',
+                    'price': (item['price'] as num?)?.toDouble() ?? 0.0,
+                    'stock': 0,
+                    'created_at': DateTime.now().toIso8601String(),
+                  });
+                } else {
                   cost = (productRows.first['cost_price'] as num?)?.toDouble() ?? 0.0;
                 }
 
                 await txn.insert('transaction_items', {
                   'transaction_id': transactionId,
-                  'product_id': item['product_id'],
+                  'product_id': productId,
                   'quantity': item['qty'],
                   'price_at_sale': (item['price'] as num?)?.toDouble() ?? 0.0,
                   'cost_at_sale': cost,
@@ -769,15 +778,24 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                  
                  if (o['items'] is List) {
                    for (var item in o['items']) {
-                      final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [item['product_id']]);
+                      final productId = item['product_id'];
+                      final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [productId]);
                       double cost = 0.0;
-                      if (productRows.isNotEmpty) {
+                      if (productRows.isEmpty) {
+                        await txn.insert('products', {
+                          'id': productId,
+                          'name': item['name'] ?? 'Produk Toko Online',
+                          'price': (item['price'] as num?)?.toDouble() ?? 0.0,
+                          'stock': 0,
+                          'created_at': DateTime.now().toIso8601String(),
+                        });
+                      } else {
                         cost = (productRows.first['cost_price'] as num?)?.toDouble() ?? 0.0;
                       }
                       
                       await txn.insert('transaction_items', {
                          'transaction_id': transactionId,
-                         'product_id': item['product_id'],
+                         'product_id': productId,
                          'quantity': item['qty'],
                          'price_at_sale': (item['price'] as num?)?.toDouble() ?? 0.0,
                          'cost_at_sale': cost,
