@@ -116,8 +116,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: bgLight,
-      body: SingleChildScrollView(
-        child: Column(
+      body: RefreshIndicator(
+        color: primaryGreen,
+        onRefresh: _loadDashboardData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
@@ -566,6 +570,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 40),
           ],
         ),
+      ),
       ),
     );
   }
