@@ -467,8 +467,8 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildPaymentOption(BuildContext context, String label, IconData icon, CartProvider cart) {
-    final primaryColor = Theme.of(context).primaryColor;
+  Widget _buildPaymentOption(BuildContext sheetContext, String label, IconData icon, CartProvider cart) {
+    final primaryColor = Theme.of(this.context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -483,30 +483,30 @@ class _CartScreenState extends State<CartScreen> {
         onTap: () async {
           if (label == 'Hutang / Tempo') {
             if (_nameController.text.trim().isEmpty) {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nama Pelanggan wajib diisi untuk Hutang/Tempo!'), backgroundColor: Colors.red));
+               ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Nama Pelanggan wajib diisi untuk Hutang/Tempo!'), backgroundColor: Colors.red));
                return; // Don't close bottom sheet, force user to type name
             }
-            Navigator.pop(context);
-            await _processPayment(context, cart, 0, label);
+            Navigator.pop(sheetContext);
+            await _processPayment(this.context, cart, 0, label);
           } else if (label == 'QRIS') {
-            final auth = Provider.of<AuthProvider>(context, listen: false);
+            final auth = Provider.of<AuthProvider>(this.context, listen: false);
             final qrisPayload = auth.storeInfo['qrisPayload'];
             if (qrisPayload != null && qrisPayload.isNotEmpty) {
-              Navigator.pop(context);
-              await _showQrisDialog(context, cart, qrisPayload);
+              Navigator.pop(sheetContext);
+              await _showQrisDialog(this.context, cart, qrisPayload);
             } else {
-              Navigator.pop(context);
-              await _processPayment(context, cart, cart.totalAmount, label);
+              Navigator.pop(sheetContext);
+              await _processPayment(this.context, cart, cart.totalAmount, label);
             }
           } else {
-            Navigator.pop(context); // Close selection
+            Navigator.pop(sheetContext); // Close selection
             if (label == 'Tunai') {
-              await _showCheckoutDialog(context, cart);
+              await _showCheckoutDialog(this.context, cart);
             } else if (label == 'Belum Bayar (Simpan)') {
-              await _processPayment(context, cart, 0, 'Belum Bayar');
+              await _processPayment(this.context, cart, 0, 'Belum Bayar');
             } else {
               // For non-cash, assume paid in full
-              await _processPayment(context, cart, cart.totalAmount, label);
+              await _processPayment(this.context, cart, cart.totalAmount, label);
             }
           }
         },
@@ -580,6 +580,8 @@ class _CartScreenState extends State<CartScreen> {
       final items = cart.items.map((e) => {
         'name': e.variation != null ? '${e.product.name} (${e.variation!.name})' : e.product.name,
         'quantity': e.quantity,
+        'price': e.price,
+        'discount': e.discount,
         'total': e.total,
       }).toList();
       final auth = Provider.of<AuthProvider>(context, listen: false);
