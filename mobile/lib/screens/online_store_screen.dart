@@ -95,11 +95,87 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     
     if (!mounted) return; // Mencegah error setState setelah layar ditutup
 
+    final fetchedOrders = results[2] as List<dynamic>;
+    await _syncPaidOrdersToLocal(fetchedOrders);
+
     setState(() {
       _products = (results[0] as Map<String, dynamic>)['products'] ?? [];
       _balance = results[1] as double;
-      _orders = results[2] as List<dynamic>;
+      _orders = fetchedOrders;
     });
+  }
+
+  Future<void> _syncPaidOrdersToLocal(List<dynamic> orders) async {
+    final dbService = DatabaseService();
+    final db = await dbService.database;
+    bool hasNewLocalTransactions = false;
+
+    for (var o in orders) {
+      if (o['status'] == 'paid') {
+        final orderId = o['id'];
+        final existing = await db.query('transactions', where: 'payment_method = ?', whereArgs: ['Toko Online #$orderId']);
+        if (existing.isEmpty) {
+          await db.transaction((txn) async {
+            final total = (o['total_amount'] as num).toDouble();
+            int? shiftId;
+            try {
+              if (mounted) {
+                shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
+              }
+            } catch (e) {
+              debugPrint('Error getting active shift: $e');
+            }
+
+            final transactionId = await txn.insert('transactions', {
+              'total_amount': total,
+              'paid_amount': total,
+              'created_at': o['created_at'] ?? DateTime.now().toIso8601String(),
+              'payment_method': 'Toko Online #$orderId',
+              'shift_id': shiftId,
+              'is_synced': 0
+            });
+
+            if (o['items'] is List) {
+              for (var item in o['items']) {
+                final productRows = await txn.query('products', columns: ['cost_price'], where: 'id = ?', whereArgs: [item['product_id']]);
+                double cost = 0.0;
+                if (productRows.isNotEmpty) {
+                  cost = (productRows.first['cost_price'] as num?)?.toDouble() ?? 0.0;
+                }
+
+                await txn.insert('transaction_items', {
+                  'transaction_id': transactionId,
+                  'product_id': item['product_id'],
+                  'quantity': item['qty'],
+                  'price_at_sale': (item['price'] as num?)?.toDouble() ?? 0.0,
+                  'cost_at_sale': cost,
+                  'is_synced': 0
+                });
+              }
+            }
+          });
+          hasNewLocalTransactions = true;
+          debugPrint('Sync: Online Store Order #$orderId automatically synced to local transactions.');
+        }
+      }
+    }
+
+    if (hasNewLocalTransactions) {
+      DatabaseService.hasUnsyncedChanges = true;
+      if (mounted) {
+        try {
+          Provider.of<ShiftProvider>(context, listen: false).checkActiveShift();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pesanan online yang lunas otomatis disinkronkan ke Laporan POS!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          debugPrint('Error updating shift or showing snackbar: $e');
+        }
+      }
+    }
   }
 
   String _formatRupiah(dynamic n) {
