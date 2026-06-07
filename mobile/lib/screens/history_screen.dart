@@ -259,11 +259,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           final returQty = returQtyMap[itemId] ?? 0;
           if (returQty <= 0) continue;
 
-          // 1. Kembalikan stok produk
-          await txn.rawUpdate(
-            'UPDATE products SET stock = stock + ?, is_synced = 0 WHERE id = ?',
-            [returQty, productId],
-          );
+          // 1. Kembalikan stok produk (jika tidak unlimited)
+          final isUnlimited = item['is_unlimited'] == 1;
+          if (!isUnlimited) {
+            await txn.rawUpdate(
+              'UPDATE products SET stock = stock + ?, is_synced = 0 WHERE id = ?',
+              [returQty, productId],
+            );
+          }
 
           // 2. Update returned_qty di transaction_items
           final prevReturnedQty = item['returned_qty'] as int? ?? 0;
@@ -393,7 +396,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final items = await db.rawQuery('''
       SELECT ti.id as item_id, ti.product_id, p.name, ti.quantity,
              COALESCE(ti.returned_qty, 0) as returned_qty,
-             ti.price_at_sale as price, (ti.price_at_sale * ti.quantity) as total
+             ti.price_at_sale as price, (ti.price_at_sale * ti.quantity) as total,
+             p.is_unlimited
       FROM transaction_items ti
       JOIN products p ON ti.product_id = p.id
       WHERE ti.transaction_id = ?

@@ -30,16 +30,23 @@ class ReportService {
     final startStr = start.toIso8601String();
     final endStr = end.toIso8601String();
 
-    // 1. Get total revenue directly from transactions table (avoids duplicates from JOIN)
+    // 1. Get total revenue (Kurangi dengan nilai barang yang diretur)
     final revenueResult = await db.rawQuery('''
-      SELECT SUM(total_amount) as total_revenue
-      FROM transactions
-      WHERE created_at BETWEEN ? AND ?
+      SELECT 
+        SUM(
+          t.total_amount - COALESCE(
+            (SELECT SUM(COALESCE(ti.returned_qty, 0) * ti.price_at_sale) 
+             FROM transaction_items ti 
+             WHERE ti.transaction_id = t.id), 0
+          )
+        ) as total_revenue
+      FROM transactions t
+      WHERE t.created_at BETWEEN ? AND ?
     ''', [startStr, endStr]);
 
-    // 2. Get total COGS (modal) from transaction_items table
+    // 2. Get total COGS (modal) from transaction_items table (Kurangi dengan kuantitas yang diretur)
     final cogsResult = await db.rawQuery('''
-      SELECT SUM(ti.quantity * ti.cost_at_sale) as total_cogs
+      SELECT SUM((ti.quantity - COALESCE(ti.returned_qty, 0)) * ti.cost_at_sale) as total_cogs
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id
       WHERE t.created_at BETWEEN ? AND ?
@@ -77,8 +84,8 @@ class ReportService {
     return await db.rawQuery('''
       SELECT 
         p.name,
-        SUM(ti.quantity) as total_qty,
-        SUM(ti.price_at_sale * ti.quantity) as total_sales
+        SUM(ti.quantity - COALESCE(ti.returned_qty, 0)) as total_qty,
+        SUM(ti.price_at_sale * (ti.quantity - COALESCE(ti.returned_qty, 0))) as total_sales
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id
       JOIN products p ON p.id = ti.product_id
@@ -94,21 +101,27 @@ class ReportService {
     final startStr = start.toIso8601String();
     final endStr = end.toIso8601String();
 
-    // Query daily revenue directly from transactions (no duplicate multiplication due to join)
+    // Query daily revenue (Kurangi dengan retur per transaksi)
     final revenueResult = await db.rawQuery('''
       SELECT 
-        DATE(created_at) as date,
-        SUM(total_amount) as revenue
-      FROM transactions
-      WHERE created_at BETWEEN ? AND ?
-      GROUP BY DATE(created_at)
+        DATE(t.created_at) as date,
+        SUM(
+          t.total_amount - COALESCE(
+            (SELECT SUM(COALESCE(ti.returned_qty, 0) * ti.price_at_sale) 
+             FROM transaction_items ti 
+             WHERE ti.transaction_id = t.id), 0
+          )
+        ) as revenue
+      FROM transactions t
+      WHERE t.created_at BETWEEN ? AND ?
+      GROUP BY DATE(t.created_at)
     ''', [startStr, endStr]);
 
-    // Query daily COGS (modal) from transaction_items
+    // Query daily COGS (Kurangi dengan retur)
     final cogsResult = await db.rawQuery('''
       SELECT 
         DATE(t.created_at) as date,
-        SUM(ti.quantity * ti.cost_at_sale) as cogs
+        SUM((ti.quantity - COALESCE(ti.returned_qty, 0)) * ti.cost_at_sale) as cogs
       FROM transaction_items ti
       JOIN transactions t ON t.id = ti.transaction_id
       WHERE t.created_at BETWEEN ? AND ?

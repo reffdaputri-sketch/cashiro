@@ -8,6 +8,16 @@ class Product {
   final int stock;
   final String? code;
   final String? imagePath;
+import 'package:mobile/models/product_variation.dart';
+import 'package:mobile/models/product_bundle_item.dart';
+
+class Product {
+  final int? id;
+  final String name;
+  final double price;
+  final int stock;
+  final String? code;
+  final String? imagePath;
   final DateTime createdAt;
   final double costPrice;
   final String? category;
@@ -15,6 +25,7 @@ class Product {
   final bool isOnline;
   final int weight;
   final bool isDeleted;
+  final bool isUnlimited;
   final bool isBundle;
   final int? supplierId;
   final List<ProductVariation> variations;
@@ -34,6 +45,7 @@ class Product {
     this.isOnline = false,
     this.weight = 0,
     this.isDeleted = false,
+    this.isUnlimited = false,
     this.isBundle = false,
     this.supplierId,
     this.variations = const [],
@@ -55,6 +67,7 @@ class Product {
       'is_online': isOnline ? 1 : 0,
       'weight': weight,
       'is_deleted': isDeleted ? 1 : 0,
+      'is_unlimited': isUnlimited ? 1 : 0,
       'is_bundle': isBundle ? 1 : 0,
       'supplier_id': supplierId,
     };
@@ -75,6 +88,7 @@ class Product {
       isOnline: map['is_online'] == 1,
       weight: map['weight'] ?? 0,
       isDeleted: map['is_deleted'] == 1,
+      isUnlimited: map['is_unlimited'] == 1,
       isBundle: map['is_bundle'] == 1,
       supplierId: map['supplier_id'],
       variations: variations ?? [],

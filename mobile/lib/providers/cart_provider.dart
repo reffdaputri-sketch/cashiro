@@ -105,7 +105,7 @@ class CartProvider with ChangeNotifier {
     if (index >= 0) {
       final item = _items[index];
       final currentStock = item.variation?.stock ?? item.product.stock;
-      if (product.isBundle || item.quantity < currentStock) {
+      if (product.isBundle || product.isUnlimited || item.quantity < currentStock) {
         item.quantity++;
       }
     } else {
@@ -118,7 +118,7 @@ class CartProvider with ChangeNotifier {
     final index = _items.indexOf(item);
     if (index >= 0) {
       final currentStock = item.variation?.stock ?? item.product.stock;
-      if (item.product.isBundle || item.quantity < currentStock) {
+      if (item.product.isBundle || item.product.isUnlimited || item.quantity < currentStock) {
         _items[index].quantity++;
         notifyListeners();
       }
@@ -203,19 +203,22 @@ class CartProvider with ChangeNotifier {
                if (compResult.isEmpty) throw Exception("Komponen produk tidak ditemukan.");
                final compStock = compResult.first['stock'] as int;
                final compName = compResult.first['name'] as String;
+               final isUnlimited = compResult.first['is_unlimited'] == 1;
                final needed = b.quantity * item.quantity;
-               if (compStock < needed) {
+               if (!isUnlimited && compStock < needed) {
                   throw Exception("Barang $compName Habis (dibutuhkan $needed untuk paket).");
                }
-               int newStock = compStock - needed;
-               await txn.update('products', {'stock': newStock, 'is_synced': 0}, 
-                 where: 'id = ?', whereArgs: [b.itemProductId]);
+               if (!isUnlimited) {
+                 int newStock = compStock - needed;
+                 await txn.update('products', {'stock': newStock, 'is_synced': 0}, 
+                   where: 'id = ?', whereArgs: [b.itemProductId]);
+               }
            }
         } else if (item.variation != null) {
            int newStock = item.variation!.stock - item.quantity;
            await txn.update('product_variations', {'stock': newStock, 'is_synced': 0}, 
              where: 'id = ?', whereArgs: [item.variation!.id]);
-        } else {
+        } else if (!item.product.isUnlimited) {
            int newStock = item.product.stock - item.quantity;
            await txn.update('products', {'stock': newStock, 'is_synced': 0}, 
              where: 'id = ?', whereArgs: [item.product.id]);

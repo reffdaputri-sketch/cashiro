@@ -39,6 +39,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   List<String> _categoryList = []; // New
   String? _selectedCategory;
   bool _isOnline = false; // New
+  bool _isUnlimited = false; // New
 
   // Bundling & Supplier
   bool _isBundle = false;
@@ -61,6 +62,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _minStockController.text = widget.product!.minStock.toString();
       _selectedCategory = widget.product!.category;
       _isOnline = widget.product!.isOnline;
+      _isUnlimited = widget.product!.isUnlimited;
       _variations = List.from(widget.product!.variations); // Copy list
       _isBundle = widget.product!.isBundle;
       _bundleItems = List.from(widget.product!.bundleItems);
@@ -384,6 +386,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         category: _selectedCategory,
         minStock: int.tryParse(_minStockController.text) ?? 5,
         isOnline: _isOnline,
+        isUnlimited: _isUnlimited,
         isBundle: _isBundle,
         supplierId: _selectedSupplierId,
         variations: _variations,
@@ -517,19 +520,20 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _stockController,
-                  decoration: const InputDecoration(
-                    labelText: 'Stok Utama',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.inventory),
+              if (!_isUnlimited)
+                Expanded(
+                  child: TextFormField(
+                    controller: _stockController,
+                    decoration: const InputDecoration(
+                      labelText: 'Stok Utama',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.inventory),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
                 ),
-              ),
-              const SizedBox(width: 16),
+              if (!_isUnlimited) const SizedBox(width: 16),
               Expanded(
                 child: TextFormField(
                   controller: _weightController,
@@ -543,6 +547,23 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            title: const Text('Stok Unlimited', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Cocok untuk makanan/minuman yang stoknya tidak dihitung per porsi (selalu tersedia).'),
+            value: _isUnlimited,
+            activeColor: const Color(0xFF006d77),
+            onChanged: (val) {
+              setState(() {
+                _isUnlimited = val;
+                if (val) {
+                  _stockController.text = '999999'; // Default value when unlimited
+                } else if (_stockController.text == '999999') {
+                  _stockController.text = '0';
+                }
+              });
+            },
           ),
           const SizedBox(height: 16),
           Row(

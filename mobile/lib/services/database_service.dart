@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'kiosly.db');
     return await openDatabase(
       path,
-      version: 19,
+      version: 20,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -242,8 +242,16 @@ class DatabaseService {
 
         await db.execute('ALTER TABLE products ADD COLUMN is_bundle INTEGER DEFAULT 0');
         await db.execute('ALTER TABLE products ADD COLUMN supplier_id INTEGER');
+        await db.execute("ALTER TABLE transaction_items ADD COLUMN server_id TEXT");
       } catch (e) {
         // Kolom/tabel mungkin sudah ada
+      }
+    }
+    if (oldVersion < 20) {
+      try {
+        await db.execute("ALTER TABLE products ADD COLUMN is_unlimited INTEGER DEFAULT 0");
+      } catch (e) {
+        // ignore
       }
     }
   }
@@ -265,6 +273,7 @@ class DatabaseService {
         is_online INTEGER DEFAULT 0,
         weight INTEGER DEFAULT 0,
         is_deleted INTEGER DEFAULT 0,
+        is_unlimited INTEGER DEFAULT 0,
         is_bundle INTEGER DEFAULT 0,
         supplier_id INTEGER
       )
