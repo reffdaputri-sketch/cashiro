@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:image/image.dart' as img;
 
 class ReceiptService {
   final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -236,8 +237,33 @@ class ReceiptService {
           if (await logoFile.exists()) {
             try {
               final logoBytes = await logoFile.readAsBytes();
-              await bluetooth.printImageBytes(logoBytes);
-              bluetooth.printNewLine();
+              // Resize image agar tidak terlalu besar di kertas struk (max width ~200px untuk 58mm printer)
+              final img.Image? decodedImage = img.decodeImage(logoBytes);
+              if (decodedImage != null) {
+                // Hardcode ukuran ke lebar 200px (tinggi proporsional)
+                final int targetWidth = 200;
+                final img.Image resizedImage = img.copyResize(decodedImage, width: targetWidth);
+                
+                // Kertas 58mm biasanya memiliki lebar cetak sekitar 384 dots (pixel).
+                // Kita buat kanvas putih berukuran 384 x tinggi_gambar agar bisa memposisikan gambar di tengah (center).
+                final int printerWidth = 384;
+                final img.Image centeredCanvas = img.Image(width: printerWidth, height: resizedImage.height);
+                
+                // Isi kanvas dengan warna putih
+                img.fill(centeredCanvas, color: img.ColorRgb8(255, 255, 255));
+                
+                // Hitung posisi X agar gambar berada di tengah
+                final int xPos = (printerWidth - targetWidth) ~/ 2;
+                
+                // Gambar ulang logo yang sudah di-resize ke atas kanvas putih di posisi tengah
+                img.compositeImage(centeredCanvas, resizedImage, dstX: xPos, dstY: 0);
+
+                // Convert kembali ke bytes (format PNG)
+                final Uint8List finalBytes = Uint8List.fromList(img.encodePng(centeredCanvas));
+                
+                await bluetooth.printImageBytes(finalBytes);
+                bluetooth.printNewLine();
+              }
             } catch (e) {
               debugPrint('Gagal cetak logo: $e');
               // Lanjut cetak meski logo gagal
