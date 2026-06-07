@@ -14,7 +14,7 @@ function generateToken(id: number, email: string): string {
   return crypto.createHmac('sha256', secret).update(`${id}:${email}`).digest('hex');
 }
 
-export function verifyToken(token: string, id: number, email: string): boolean {
+function verifyToken(token: string, id: number, email: string): boolean {
   return token === generateToken(id, email);
 }
 
