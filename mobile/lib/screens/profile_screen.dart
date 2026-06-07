@@ -4,6 +4,8 @@ import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/screens/edit_store_screen.dart';
 import 'package:mobile/screens/expense_screen.dart';
 import 'package:mobile/screens/printer_settings_screen.dart';
+import 'package:mobile/screens/receipt_settings_screen.dart';
+import 'package:mobile/screens/tax_settings_screen.dart';
 import 'package:mobile/screens/theme_settings_screen.dart';
 import 'package:mobile/services/backup_service.dart';
 import 'package:mobile/providers/product_provider.dart';
@@ -233,6 +235,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.receipt_long, color: Colors.indigo),
+                    title: const Text('Pengaturan Desain Nota'),
+                    subtitle: const Text('Atur logo, teks, dan tampilan struk'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ReceiptSettingsScreen()),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.calculate, color: Colors.teal),
+                    title: const Text('Pengaturan Pajak & Layanan'),
+                    subtitle: const Text('Atur PPN dan Service Charge otomatis'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const TaxSettingsScreen()),
                       );
                     },
                   ),

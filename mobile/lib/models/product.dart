@@ -1,4 +1,5 @@
 import 'package:mobile/models/product_variation.dart';
+import 'package:mobile/models/product_bundle_item.dart';
 
 class Product {
   final int? id;
@@ -13,7 +14,11 @@ class Product {
   final int minStock;
   final bool isOnline;
   final int weight;
+  final bool isDeleted;
+  final bool isBundle;
+  final int? supplierId;
   final List<ProductVariation> variations;
+  final List<ProductBundleItem> bundleItems;
 
   Product({
     this.id,
@@ -28,7 +33,11 @@ class Product {
     this.minStock = 5,
     this.isOnline = false,
     this.weight = 0,
+    this.isDeleted = false,
+    this.isBundle = false,
+    this.supplierId,
     this.variations = const [],
+    this.bundleItems = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -45,10 +54,13 @@ class Product {
       'min_stock': minStock,
       'is_online': isOnline ? 1 : 0,
       'weight': weight,
+      'is_deleted': isDeleted ? 1 : 0,
+      'is_bundle': isBundle ? 1 : 0,
+      'supplier_id': supplierId,
     };
   }
 
-  factory Product.fromMap(Map<String, dynamic> map, {List<ProductVariation> variations = const []}) {
+  factory Product.fromMap(Map<String, dynamic> map, {List<ProductVariation>? variations, List<ProductBundleItem>? bundleItems}) {
     return Product(
       id: map['id'],
       name: map['name'],
@@ -60,9 +72,13 @@ class Product {
       costPrice: map['cost_price'] ?? 0.0,
       category: map['category'],
       minStock: map['min_stock'] ?? 5,
-      isOnline: (map['is_online'] ?? 0) == 1,
+      isOnline: map['is_online'] == 1,
       weight: map['weight'] ?? 0,
-      variations: variations,
+      isDeleted: map['is_deleted'] == 1,
+      isBundle: map['is_bundle'] == 1,
+      supplierId: map['supplier_id'],
+      variations: variations ?? [],
+      bundleItems: bundleItems ?? [],
     );
   }
 }

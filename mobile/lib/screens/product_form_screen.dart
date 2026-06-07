@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mobile/providers/product_provider.dart';
 import 'package:mobile/models/product.dart';
 import 'package:mobile/models/product_variation.dart';
+import 'package:mobile/models/product_bundle_item.dart';
 import 'package:mobile/screens/scanner_screen.dart'; // Import Scanner
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/screens/purchase_license_screen.dart';
@@ -39,10 +40,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   String? _selectedCategory;
   bool _isOnline = false; // New
 
+  // Bundling & Supplier
+  bool _isBundle = false;
+  List<ProductBundleItem> _bundleItems = [];
+  int? _selectedSupplierId;
+  List<Map<String, dynamic>> _suppliers = [];
+
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    _loadSuppliers();
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _priceController.text = widget.product!.price.toStringAsFixed(0);
@@ -54,6 +62,9 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       _selectedCategory = widget.product!.category;
       _isOnline = widget.product!.isOnline;
       _variations = List.from(widget.product!.variations); // Copy list
+      _isBundle = widget.product!.isBundle;
+      _bundleItems = List.from(widget.product!.bundleItems);
+      _selectedSupplierId = widget.product!.supplierId;
       
       if (widget.product!.imagePath != null) {
         final path = widget.product!.imagePath!;
@@ -71,6 +82,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final List<Map<String, dynamic>> maps = await db.query('categories', orderBy: 'name ASC');
     setState(() {
       _categoryList = maps.map((e) => e['name'] as String).toList();
+    });
+  }
+
+  Future<void> _loadSuppliers() async {
+    final provider = Provider.of<ProductProvider>(context, listen: false);
+    final data = await provider.getSuppliers();
+    setState(() {
+      _suppliers = data;
     });
   }
 
@@ -258,6 +277,58 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     );
   }
 
+  void _showAddBundleItemDialog() {
+    final provider = Provider.of<ProductProvider>(context, listen: false);
+    // filter only non-bundle products
+    final availableProducts = provider.products.where((p) => !p.isBundle).toList();
+    Product? selectedProduct;
+    final qtyCtrl = TextEditingController(text: '1');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Tambah Komponen Paket'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<Product>(
+                decoration: const InputDecoration(labelText: 'Pilih Produk', border: OutlineInputBorder()),
+                items: availableProducts.map((p) => DropdownMenuItem(value: p, child: Text(p.name))).toList(),
+                onChanged: (val) => setDialogState(() => selectedProduct = val),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: qtyCtrl,
+                decoration: const InputDecoration(labelText: 'Kuantitas (Qty)', border: OutlineInputBorder()),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () {
+                final qty = int.tryParse(qtyCtrl.text);
+                if (selectedProduct != null && qty != null && qty > 0) {
+                  setState(() {
+                    _bundleItems.add(ProductBundleItem(
+                      itemProductId: selectedProduct!.id!,
+                      quantity: qty,
+                      itemName: selectedProduct!.name,
+                    ));
+                  });
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('Tambah'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showDemoLockedDialog() {
     showDialog(
       context: context,
@@ -313,7 +384,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         category: _selectedCategory,
         minStock: int.tryParse(_minStockController.text) ?? 5,
         isOnline: _isOnline,
+        isBundle: _isBundle,
+        supplierId: _selectedSupplierId,
         variations: _variations,
+        bundleItems: _bundleItems,
       );
 
       final provider = Provider.of<ProductProvider>(context, listen: false);
@@ -366,6 +440,20 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               prefixIcon: Icon(Icons.shopping_bag),
             ),
             validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            value: _selectedSupplierId,
+            decoration: const InputDecoration(
+              labelText: 'Supplier Asal (Opsional)',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.local_shipping),
+            ),
+            items: [
+              const DropdownMenuItem<int>(value: null, child: Text('- Tanpa Supplier -')),
+              ..._suppliers.map((s) => DropdownMenuItem<int>(value: s['id'] as int, child: Text(s['name']))),
+            ],
+            onChanged: (val) => setState(() => _selectedSupplierId = val),
           ),
            const SizedBox(height: 16),
           Row(
@@ -578,6 +666,47 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
               );
             }),
           
+          const SizedBox(height: 16),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Produk Bundling / Paket / Resep', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Produk ini terdiri dari beberapa produk komponen yang akan mengurangi stok mereka secara otomatis saat terjual.'),
+            value: _isBundle,
+            activeColor: const Color(0xFF006d77),
+            onChanged: (val) => setState(() => _isBundle = val),
+          ),
+          if (_isBundle) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Komponen Paket', style: TextStyle(fontWeight: FontWeight.bold)),
+                TextButton.icon(
+                  onPressed: _showAddBundleItemDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah Komponen'),
+                ),
+              ],
+            ),
+            if (_bundleItems.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text('Belum ada komponen yang ditambahkan.', style: TextStyle(color: Colors.grey)),
+              )
+            else
+              ..._bundleItems.asMap().entries.map((entry) {
+                 final idx = entry.key;
+                 final b = entry.value;
+                 return ListTile(
+                   title: Text(b.itemName ?? 'Unknown Product'),
+                   subtitle: Text('Qty: ${b.quantity}'),
+                   trailing: IconButton(
+                     icon: const Icon(Icons.delete, color: Colors.red),
+                     onPressed: () => setState(() => _bundleItems.removeAt(idx)),
+                   ),
+                 );
+              }),
+          ],
+
           const SizedBox(height: 16),
           SwitchListTile(
             title: const Text('Tampilkan di Toko Online', style: TextStyle(fontWeight: FontWeight.bold)),

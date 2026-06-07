@@ -8,11 +8,13 @@ class SyncService {
   final DatabaseService _dbService = DatabaseService();
   final ApiService _apiService = ApiService();
   final AuthService _authService = AuthService();
-
   final List<String> _syncTables = [
     'categories',
+    'suppliers',
     'products',
+    'product_bundles',
     'product_variations',
+    'stock_opname_history',
     'shifts',
     'transactions',
     'transaction_items',

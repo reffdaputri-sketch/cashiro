@@ -1,0 +1,146 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+
+class AuthService {
+  static const String KEY_IS_REGISTERED = 'is_registered';
+  static const String KEY_STORE_NAME = 'store_name';
+  static const String KEY_OWNER_NAME = 'owner_name';
+  static const String KEY_PHONE = 'phone';
+  static const String KEY_ADDRESS = 'address';
+  static const String KEY_STORE_IMAGE = 'store_image';
+  static const String KEY_PIN = 'pin';
+  static const String KEY_STORE_ID = 'store_id';
+  static const String KEY_LICENSE_KEY = 'license_key';
+  static const String KEY_EMAIL = 'email';
+  static const String KEY_CITY_ID = 'city_id';
+  static const String KEY_BANK_NAME = 'bank_name';
+  static const String KEY_BANK_ACCOUNT = 'bank_account';
+  static const String KEY_BANK_ACCOUNT_NAME = 'bank_account_name';
+  static const String KEY_QRIS_PAYLOAD = 'qris_payload';
+  static const String KEY_BANNERS = 'banners';
+  static const String KEY_IS_LOCAL_COURIER_ACTIVE = 'is_local_courier_active';
+  static const String KEY_LOCAL_COURIER_FEE = 'local_courier_fee';
+  static const String KEY_STORE_LAT = 'store_lat';
+  static const String KEY_STORE_LNG = 'store_lng';
+  static const String KEY_MAX_DELIVERY_RADIUS = 'max_delivery_radius';
+  Future<bool> isRegistered() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(KEY_IS_REGISTERED) ?? false;
+  }
+
+  String hashPin(String pin) {
+    final bytes = utf8.encode(pin);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  Future<bool> verifyOwnerPin(String pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedPinHash = prefs.getString(KEY_PIN);
+    if (storedPinHash == null) return false;
+    
+    // Backward compatibility: If the stored value is not a SHA-256 hash (64 hex characters), compare directly
+    if (storedPinHash.length != 64) {
+      return storedPinHash == pin;
+    }
+    
+    return storedPinHash == hashPin(pin);
+  }
+
+  Future<void> register({
+    required String storeName,
+    required String ownerName,
+    required String phone,
+    required String address,
+    required String? imagePath,
+    required String pin,
+    required String storeId,
+    required String licenseKey,
+    required String email,
+    String? qrisPayload,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(KEY_STORE_NAME, storeName);
+    await prefs.setString(KEY_OWNER_NAME, ownerName);
+    await prefs.setString(KEY_PHONE, phone);
+    await prefs.setString(KEY_ADDRESS, address);
+    if (imagePath != null) await prefs.setString(KEY_STORE_IMAGE, imagePath);
+    // Hash PIN if it is not already hashed (64 chars length)
+    final pinHash = pin.length == 64 ? pin : hashPin(pin);
+    await prefs.setString(KEY_PIN, pinHash);
+    await prefs.setString(KEY_STORE_ID, storeId);
+    await prefs.setString(KEY_LICENSE_KEY, licenseKey);
+    await prefs.setString(KEY_EMAIL, email);
+    if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
+    await prefs.setBool(KEY_IS_REGISTERED, true);
+  }
+
+  Future<Map<String, String>> getStoreInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'storeName': prefs.getString(KEY_STORE_NAME) ?? '',
+      'ownerName': prefs.getString(KEY_OWNER_NAME) ?? '',
+      'phone': prefs.getString(KEY_PHONE) ?? '',
+      'address': prefs.getString(KEY_ADDRESS) ?? '',
+      'imagePath': prefs.getString(KEY_STORE_IMAGE) ?? '',
+      'storeId': prefs.getString(KEY_STORE_ID) ?? '',
+      'licenseKey': prefs.getString(KEY_LICENSE_KEY) ?? '',
+      'email': prefs.getString(KEY_EMAIL) ?? '',
+      'cityId': prefs.getInt(KEY_CITY_ID)?.toString() ?? '',
+      'bankName': prefs.getString(KEY_BANK_NAME) ?? '',
+      'bankAccount': prefs.getString(KEY_BANK_ACCOUNT) ?? '',
+      'bankAccountName': prefs.getString(KEY_BANK_ACCOUNT_NAME) ?? '',
+      'qrisPayload': prefs.getString(KEY_QRIS_PAYLOAD) ?? '',
+      'banners': prefs.getString(KEY_BANNERS) ?? '[]',
+      'isLocalCourierActive': prefs.getBool(KEY_IS_LOCAL_COURIER_ACTIVE)?.toString() ?? 'false',
+      'localCourierFee': prefs.getDouble(KEY_LOCAL_COURIER_FEE)?.toString() ?? '0.0',
+      'storeLat': prefs.getDouble(KEY_STORE_LAT)?.toString() ?? '0.0',
+      'storeLng': prefs.getDouble(KEY_STORE_LNG)?.toString() ?? '0.0',
+      'maxDeliveryRadius': prefs.getDouble(KEY_MAX_DELIVERY_RADIUS)?.toString() ?? '0.0',
+    };
+  }
+
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(KEY_STORE_NAME, storeName);
+    await prefs.setString(KEY_OWNER_NAME, ownerName);
+    await prefs.setString(KEY_PHONE, phone);
+    await prefs.setString(KEY_ADDRESS, address);
+    if (imagePath != null) await prefs.setString(KEY_STORE_IMAGE, imagePath);
+    if (cityId != null) await prefs.setInt(KEY_CITY_ID, cityId);
+    if (bankName != null) await prefs.setString(KEY_BANK_NAME, bankName);
+    if (bankAccount != null) await prefs.setString(KEY_BANK_ACCOUNT, bankAccount);
+    if (bankAccountName != null) await prefs.setString(KEY_BANK_ACCOUNT_NAME, bankAccountName);
+    if (qrisPayload != null) await prefs.setString(KEY_QRIS_PAYLOAD, qrisPayload);
+    if (banners != null) await prefs.setString(KEY_BANNERS, jsonEncode(banners));
+    if (isLocalCourierActive != null) await prefs.setBool(KEY_IS_LOCAL_COURIER_ACTIVE, isLocalCourierActive);
+    if (localCourierFee != null) await prefs.setDouble(KEY_LOCAL_COURIER_FEE, localCourierFee);
+    if (storeLat != null) await prefs.setDouble(KEY_STORE_LAT, storeLat);
+    if (storeLng != null) await prefs.setDouble(KEY_STORE_LNG, storeLng);
+    if (maxDeliveryRadius != null) await prefs.setDouble(KEY_MAX_DELIVERY_RADIUS, maxDeliveryRadius);
+  }
+
+  Future<void> updatePin(String newPin) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pinHash = newPin.length == 64 ? newPin : hashPin(newPin);
+    await prefs.setString(KEY_PIN, pinHash);
+  }
+
+  static const String KEY_CLOUD_SYNC_ENABLED = 'cloud_sync_enabled';
+
+  Future<bool> isCloudSyncEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(KEY_CLOUD_SYNC_ENABLED) ?? true;
+  }
+
+  Future<void> setCloudSyncEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(KEY_CLOUD_SYNC_ENABLED, enabled);
+  }
+
+  Future<void> logout() async {
+     final prefs = await SharedPreferences.getInstance();
+     await prefs.clear();
+  }
+}

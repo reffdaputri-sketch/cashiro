@@ -1,0 +1,42 @@
+<Window x:Class="KioslyDesktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:viewmodels="clr-namespace:KioslyDesktop.ViewModels"
+        xmlns:views="clr-namespace:KioslyDesktop.Views"
+        xmlns:converters="clr-namespace:KioslyDesktop.Converters"
+        Title="KIOSLY Desktop POS" Height="700" Width="1100"
+        Background="{StaticResource BackgroundColor}">
+    
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type viewmodels:PosViewModel}">
+            <views:PosView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodels:ProductListViewModel}">
+            <views:ProductListView />
+        </DataTemplate>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="{StaticResource PrimaryColor}">
+            <StackPanel Margin="10">
+                <TextBlock Text="KIOSLY" FontSize="32" FontWeight="Black" Foreground="White" Margin="0,30,0,50" HorizontalAlignment="Center"/>
+                
+                <Button Content="Kasir (POS)" Command="{Binding NavigateToPosCommand}" Margin="10,5" Background="{StaticResource SecondaryColor}" FontSize="16" Height="45"/>
+                <Button Content="Produk" Command="{Binding NavigateToProductsCommand}" Margin="10,5" Background="{StaticResource PrimaryColor}" FontSize="16" Height="45"/>
+                <Button Content="Transaksi" Margin="10,5" Background="{StaticResource PrimaryColor}" FontSize="16" Height="45"/>
+                <Button Content="Laporan" Margin="10,5" Background="{StaticResource PrimaryColor}" FontSize="16" Height="45"/>
+                <Button Content="Pengaturan" Margin="10,5" Background="{StaticResource PrimaryColor}" FontSize="16" Height="45"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentView}" />
+    </Grid>
+</Window>

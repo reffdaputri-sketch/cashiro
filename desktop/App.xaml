@@ -1,0 +1,22 @@
+<Application x:Class="KioslyDesktop.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- KIOSLY Green Theme Colors -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#2E7D32"/>
+        <SolidColorBrush x:Key="SecondaryColor" Color="#4CAF50"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#81C784"/>
+        <SolidColorBrush x:Key="BackgroundColor" Color="#F1F8E9"/>
+        <SolidColorBrush x:Key="TextColor" Color="#1B5E20"/>
+        
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Application.Resources>
+</Application>

@@ -319,59 +319,116 @@ class _StockReportScreenState extends State<StockReportScreen> with RouteAware {
 
   Future<void> _showStockOpnameDialog(Map<String, dynamic> product) async {
     final controller = TextEditingController(text: product['stock'].toString());
+    final notesController = TextEditingController();
+    int? selectedSupplierId;
+    List<Map<String, dynamic>> suppliers = [];
+    bool isLoadingSuppliers = true;
+
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
-          children: [
-            const Icon(Icons.inventory, size: 48, color: Colors.blue),
-            const SizedBox(height: 16),
-            const Text('Opname Stok', textAlign: TextAlign.center),
-            Text(
-              product['name'],
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.grey),
-              textAlign: TextAlign.center,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          if (isLoadingSuppliers) {
+             Provider.of<ProductProvider>(context, listen: false).getSuppliers().then((data) {
+                if (mounted) {
+                   setState(() {
+                      suppliers = data;
+                      isLoadingSuppliers = false;
+                   });
+                }
+             });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Column(
+              children: [
+                const Icon(Icons.inventory, size: 48, color: Colors.blue),
+                const SizedBox(height: 16),
+                const Text('Opname Stok', textAlign: TextAlign.center),
+                Text(
+                  product['name'],
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            labelText: 'Stok Fisik Saat Ini',
-            alignLabelWithHint: true,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      labelText: 'Stok Fisik Saat Ini',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (isLoadingSuppliers) 
+                     const CircularProgressIndicator()
+                  else
+                     DropdownButtonFormField<int>(
+                       decoration: InputDecoration(
+                         labelText: 'Supplier Asal (Opsional)',
+                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                       ),
+                       value: selectedSupplierId,
+                       items: [
+                         const DropdownMenuItem<int>(
+                           value: null,
+                           child: Text('Tanpa Supplier'),
+                         ),
+                         ...suppliers.map((s) => DropdownMenuItem<int>(
+                           value: s['id'] as int,
+                           child: Text(s['name']),
+                         )),
+                       ],
+                       onChanged: (val) => setState(() => selectedSupplierId = val),
+                     ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: notesController,
+                    decoration: InputDecoration(
+                      labelText: 'Catatan Penyesuaian',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () async {
-              final newStock = int.tryParse(controller.text);
-              if (newStock != null) {
-                await Provider.of<ProductProvider>(context, listen: false)
-                    .updateStock(product['id'], newStock);
-                _refreshAll(); // Refresh laporan stok
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () async {
+                  final newStock = int.tryParse(controller.text);
+                  if (newStock != null) {
+                    await Provider.of<ProductProvider>(context, listen: false)
+                        .updateStock(product['id'], newStock, supplierId: selectedSupplierId, notes: notesController.text);
+                    _refreshAll(); // Refresh laporan stok
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  }
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }

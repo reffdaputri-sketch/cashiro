@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'kiosly.db');
     return await openDatabase(
       path,
-      version: 15,
+      version: 19,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -167,6 +167,85 @@ class DatabaseService {
         // ignore if already exists
       }
     }
+    if (oldVersion < 16) {
+      // Tambah kolom status untuk transaksi (retur)
+      try {
+        await db.execute("ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'Selesai'");
+      } catch (e) {
+        // ignore if already exists
+      }
+      // Tambah kolom returned_qty di transaction_items
+      try {
+        await db.execute('ALTER TABLE transaction_items ADD COLUMN returned_qty INTEGER DEFAULT 0');
+      } catch (e) {
+        // Kolom mungkin sudah ada
+      }
+    }
+
+    if (oldVersion < 17) {
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN tax_amount REAL DEFAULT 0');
+        await db.execute('ALTER TABLE transactions ADD COLUMN service_charge_amount REAL DEFAULT 0');
+      } catch (e) {
+        // Kolom mungkin sudah ada
+      }
+    }
+
+    if (oldVersion < 18) {
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN cashier_name TEXT');
+        await db.execute('ALTER TABLE transactions ADD COLUMN tax_percentage REAL');
+      } catch (e) {
+        // Kolom mungkin sudah ada
+      }
+    }
+
+    if (oldVersion < 19) {
+      try {
+        await db.execute('''
+          CREATE TABLE suppliers(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            address TEXT,
+            created_at TEXT NOT NULL,
+            is_synced INTEGER DEFAULT 0
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE stock_opname_history(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            old_stock INTEGER NOT NULL,
+            new_stock INTEGER NOT NULL,
+            supplier_id INTEGER,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            is_synced INTEGER DEFAULT 0,
+            FOREIGN KEY(product_id) REFERENCES products(id),
+            FOREIGN KEY(supplier_id) REFERENCES suppliers(id)
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE product_bundles(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bundle_product_id INTEGER NOT NULL,
+            item_product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            is_synced INTEGER DEFAULT 0,
+            FOREIGN KEY(bundle_product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY(item_product_id) REFERENCES products(id) ON DELETE CASCADE
+          )
+        ''');
+
+        await db.execute('ALTER TABLE products ADD COLUMN is_bundle INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE products ADD COLUMN supplier_id INTEGER');
+      } catch (e) {
+        // Kolom/tabel mungkin sudah ada
+      }
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -185,7 +264,9 @@ class DatabaseService {
         is_synced INTEGER DEFAULT 0,
         is_online INTEGER DEFAULT 0,
         weight INTEGER DEFAULT 0,
-        is_deleted INTEGER DEFAULT 0
+        is_deleted INTEGER DEFAULT 0,
+        is_bundle INTEGER DEFAULT 0,
+        supplier_id INTEGER
       )
     ''');
 
@@ -222,9 +303,15 @@ class DatabaseService {
         paid_amount REAL NOT NULL,
         created_at TEXT NOT NULL,
         customer_id INTEGER,
-        payment_method TEXT DEFAULT 'Tunai',
+        payment_method TEXT,
         shift_id INTEGER,
+        status TEXT DEFAULT 'Selesai',
+        tax_amount REAL DEFAULT 0,
+        service_charge_amount REAL DEFAULT 0,
+        cashier_name TEXT,
+        tax_percentage REAL,
         is_synced INTEGER DEFAULT 0,
+        FOREIGN KEY (customer_id) REFERENCES customers (id),
         FOREIGN KEY(shift_id) REFERENCES shifts(id)
       )
     ''');
@@ -237,6 +324,7 @@ class DatabaseService {
         quantity INTEGER NOT NULL,
         price_at_sale REAL NOT NULL,
         cost_at_sale REAL DEFAULT 0.0,
+        returned_qty INTEGER DEFAULT 0,
         is_synced INTEGER DEFAULT 0,
         FOREIGN KEY(transaction_id) REFERENCES transactions(id),
         FOREIGN KEY(product_id) REFERENCES products(id)

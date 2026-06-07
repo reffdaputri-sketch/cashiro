@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/screens/product_list_screen.dart';
 import 'package:mobile/screens/customer_list_screen.dart';
 import 'package:mobile/screens/category_list_screen.dart';
+import 'package:mobile/screens/supplier_list_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/screens/stock_report_screen.dart';
@@ -56,6 +57,19 @@ class MasterDataScreen extends StatelessWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CustomerListScreen()),
+              ),
+            ),
+          if (auth.hasPermission('Data Pelanggan')) const SizedBox(height: 16),
+          if (auth.hasPermission('Manajemen Produk'))
+            _buildMenuCard(
+              context,
+              title: 'Data Supplier',
+              subtitle: 'Kelola data penyuplai / vendor',
+              icon: Icons.local_shipping,
+              color: Colors.purple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SupplierListScreen()),
               ),
             ),
           if (auth.hasPermission('Manajemen Produk')) const SizedBox(height: 16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/database_service.dart';
 import 'package:mobile/models/product.dart';
 import 'package:mobile/models/product_variation.dart';
+import 'package:mobile/models/product_bundle_item.dart';
 import 'dart:math';
 
 class ProductProvider with ChangeNotifier {
@@ -22,6 +23,7 @@ class ProductProvider with ChangeNotifier {
       where: 'is_deleted = 0 OR is_deleted IS NULL',
     );
     final variationMaps = await _db.getAll('product_variations');
+    final bundleMaps = await _db.getAll('product_bundles');
 
     _products = productMaps.map((pMap) {
        final pId = pMap['id'] as int;
@@ -29,7 +31,19 @@ class ProductProvider with ChangeNotifier {
            .where((v) => v['product_id'] == pId)
            .map((v) => ProductVariation.fromMap(v))
            .toList();
-       return Product.fromMap(pMap, variations: variations);
+           
+       final bItems = bundleMaps
+           .where((b) => b['bundle_product_id'] == pId)
+           .map((b) {
+               // find item name
+               final compProduct = productMaps.firstWhere(
+                 (cp) => cp['id'] == b['item_product_id'], 
+                 orElse: () => {'name': 'Unknown'}
+               );
+               return ProductBundleItem.fromMap(b, itemName: compProduct['name']);
+           }).toList();
+
+       return Product.fromMap(pMap, variations: variations, bundleItems: bItems);
     }).toList();
 
     _isLoading = false;
@@ -46,6 +60,13 @@ class ProductProvider with ChangeNotifier {
         vMap.remove('id'); // Ensure ID is generated
         vMap['is_synced'] = 0;
         await txn.insert('product_variations', vMap);
+      }
+      for (var b in product.bundleItems) {
+        final bMap = b.toMap();
+        bMap['bundle_product_id'] = id;
+        bMap.remove('id');
+        bMap['is_synced'] = 0;
+        await txn.insert('product_bundles', bMap);
       }
     });
     DatabaseService.hasUnsyncedChanges = true;
@@ -85,6 +106,16 @@ class ProductProvider with ChangeNotifier {
          vMap['is_synced'] = 0;
          await txn.insert('product_variations', vMap);
       }
+      
+      // Sync bundles
+      await txn.delete('product_bundles', where: 'bundle_product_id = ?', whereArgs: [product.id]);
+      for (var b in product.bundleItems) {
+         final bMap = b.toMap();
+         bMap['bundle_product_id'] = product.id;
+         bMap.remove('id'); 
+         bMap['is_synced'] = 0;
+         await txn.insert('product_bundles', bMap);
+      }
     });
     DatabaseService.hasUnsyncedChanges = true;
     await fetchProducts();
@@ -106,9 +137,58 @@ class ProductProvider with ChangeNotifier {
     await fetchProducts();
   }
 
-  Future<void> updateStock(int id, int newStock) async {
-    await _db.update('products', {'stock': newStock}, id);
+  Future<void> updateStock(int id, int newStock, {int? supplierId, String? notes}) async {
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      final res = await txn.query('products', columns: ['stock'], where: 'id = ?', whereArgs: [id]);
+      if (res.isNotEmpty) {
+         final oldStock = res.first['stock'] as int;
+         await txn.update('products', {'stock': newStock, 'is_synced': 0}, where: 'id = ?', whereArgs: [id]);
+         
+         await txn.insert('stock_opname_history', {
+           'product_id': id,
+           'old_stock': oldStock,
+           'new_stock': newStock,
+           'supplier_id': supplierId,
+           'notes': notes,
+           'created_at': DateTime.now().toIso8601String(),
+           'is_synced': 0
+         });
+      }
+    });
+    DatabaseService.hasUnsyncedChanges = true;
     await fetchProducts();
+  }
+
+  // SUPPLIERS
+  Future<List<Map<String, dynamic>>> getSuppliers() async {
+    return await _db.getAll('suppliers', orderBy: 'name ASC');
+  }
+
+  Future<void> addSupplier(String name, String phone, String address) async {
+    await _db.insert('suppliers', {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'created_at': DateTime.now().toIso8601String(),
+      'is_synced': 0
+    });
+    notifyListeners();
+  }
+
+  Future<void> updateSupplier(int id, String name, String phone, String address) async {
+    await _db.update('suppliers', {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'is_synced': 0
+    }, id);
+    notifyListeners();
+  }
+
+  Future<void> deleteSupplier(int id) async {
+    await _db.delete('suppliers', id);
+    notifyListeners();
   }
 
   Future<void> generateDemoData() async {

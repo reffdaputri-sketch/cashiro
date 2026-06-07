@@ -246,6 +246,66 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                 ),
+                InkWell(
+                  onTap: () => _showTaxDialog(context, cart),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(cart.taxEnabled && cart.manualTax < 0 ? 'Pajak (${cart.taxPercentage.toStringAsFixed(1)}%):' : 'Pajak (PPN):', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                            Text(
+                              cart.taxAmount > 0 ? ' Ubah' : ' + Tambah',
+                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '+ ${currencyFormatter.format(cart.taxAmount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: cart.taxAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => _showOtherFeeDialog(context, cart),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(cart.serviceChargeEnabled && cart.manualOtherFee < 0 ? 'Biaya Lainnya (${cart.serviceChargePercentage.toStringAsFixed(1)}%):' : 'Biaya Lainnya:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                            const SizedBox(width: 6),
+                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                            Text(
+                              cart.serviceChargeAmount > 0 ? ' Ubah' : ' + Tambah',
+                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '+ ${currencyFormatter.format(cart.serviceChargeAmount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: cart.serviceChargeAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -329,6 +389,130 @@ class _CartScreenState extends State<CartScreen> {
             child: const Text('Simpan'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showTaxDialog(BuildContext context, CartProvider cart) async {
+    final controller = TextEditingController(text: cart.manualTax >= 0 ? (cart.manualTax == cart.manualTax.toInt() ? cart.manualTax.toInt().toString() : cart.manualTax.toString()) : '');
+    bool isPercent = cart.manualTaxIsPercent;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Atur Pajak (PPN)'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('Rp'),
+                        value: false,
+                        groupValue: isPercent,
+                        onChanged: (val) => setState(() => isPercent = val!),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('%'),
+                        value: true,
+                        groupValue: isPercent,
+                        onChanged: (val) => setState(() => isPercent = val!),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Jumlah Pajak'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              ElevatedButton(
+                onPressed: () {
+                  final val = double.tryParse(controller.text);
+                  if (val != null) {
+                    cart.setManualTax(val, isPercent: isPercent);
+                  } else if (controller.text.isEmpty) {
+                    cart.setManualTax(-1.0, isPercent: false);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  Future<void> _showOtherFeeDialog(BuildContext context, CartProvider cart) async {
+    final controller = TextEditingController(text: cart.manualOtherFee >= 0 ? (cart.manualOtherFee == cart.manualOtherFee.toInt() ? cart.manualOtherFee.toInt().toString() : cart.manualOtherFee.toString()) : '');
+    bool isPercent = cart.manualOtherFeeIsPercent;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Atur Biaya Lainnya'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('Rp'),
+                        value: false,
+                        groupValue: isPercent,
+                        onChanged: (val) => setState(() => isPercent = val!),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('%'),
+                        value: true,
+                        groupValue: isPercent,
+                        onChanged: (val) => setState(() => isPercent = val!),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Jumlah Biaya'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+              ElevatedButton(
+                onPressed: () {
+                  final val = double.tryParse(controller.text);
+                  if (val != null) {
+                    cart.setManualOtherFee(val, isPercent: isPercent);
+                  } else if (controller.text.isEmpty) {
+                    cart.setManualOtherFee(-1.0, isPercent: false);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
@@ -587,16 +771,20 @@ class _CartScreenState extends State<CartScreen> {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final storeInfo = auth.storeInfo;
       final total = cart.totalAmount;
+      final tax = cart.taxAmount;
+      final svc = cart.serviceChargeAmount;
+      final taxPct = cart.appliedTaxPercentage;
+      final cashierName = auth.currentStaff?.name ?? storeInfo['ownerName'] ?? 'Kasir';
 
       final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
-      final transactionId = await cart.checkout(paidAmount, customerId: customerId, paymentMethod: method, shiftId: shiftId);
+      final transactionId = await cart.checkout(paidAmount, customerId: customerId, paymentMethod: method, shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct);
       if (context.mounted && transactionId != null) {
         if (method == 'Belum Bayar') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan berhasil disimpan (Belum Bayar)!'), backgroundColor: Colors.orange));
           if (!widget.isEmbedded) Navigator.pop(context);
         } else {
           // Show success / receipt flow
-          _showReceiptDialog(context, transactionId, total, paidAmount, paidAmount - total, items, storeInfo, paymentMethod: method);
+          _showReceiptDialog(context, transactionId, total, paidAmount, paidAmount - total, items, storeInfo, paymentMethod: method, taxAmount: tax, serviceChargeAmount: svc, taxPercentage: taxPct, cashierName: cashierName);
         }
       }
     } catch (e) {
@@ -742,16 +930,20 @@ class _CartScreenState extends State<CartScreen> {
                     final auth = Provider.of<AuthProvider>(context, listen: false);
                     final storeInfo = auth.storeInfo;
                     final total = cart.totalAmount;
+                    final tax = cart.taxAmount;
+                    final svc = cart.serviceChargeAmount;
+                    final taxPct = cart.appliedTaxPercentage;
+                    final cashierName = auth.currentStaff?.name ?? storeInfo['ownerName'] ?? 'Kasir';
 
                     // Process Checkout
                     final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
-                    final transactionId = await cart.checkout(paid, customerId: customerId, paymentMethod: 'Tunai', shiftId: shiftId);
+                    final transactionId = await cart.checkout(paid, customerId: customerId, paymentMethod: 'Tunai', shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct);
                     
                     if (ctx.mounted) {
                       Navigator.pop(ctx); 
                       
                       if (transactionId != null) {
-                        _showReceiptDialog(context, transactionId, total, paid, kembalian, items, storeInfo);
+                        _showReceiptDialog(context, transactionId, total, paid, kembalian, items, storeInfo, taxAmount: tax, serviceChargeAmount: svc, taxPercentage: taxPct, cashierName: cashierName);
                       } else {
                          if (!widget.isEmbedded) Navigator.pop(context);
                       }
@@ -789,7 +981,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  void _showReceiptDialog(BuildContext context, int transactionId, double total, double paid, double kembalian, List<Map<String, dynamic>> items, Map<String, dynamic> storeInfo, {String paymentMethod = 'Tunai'}) {
+  void _showReceiptDialog(BuildContext context, int transactionId, double total, double paid, double kembalian, List<Map<String, dynamic>> items, Map<String, dynamic> storeInfo, {String paymentMethod = 'Tunai', double taxAmount = 0.0, double serviceChargeAmount = 0.0, double? taxPercentage, String? cashierName}) {
       final primaryColor = Theme.of(context).primaryColor;
       showDialog(
         context: context,
@@ -830,6 +1022,10 @@ class _CartScreenState extends State<CartScreen> {
                   kembalian,
                   items,
                   paymentMethod: paymentMethod,
+                  taxAmount: taxAmount,
+                  serviceChargeAmount: serviceChargeAmount,
+                  taxPercentage: taxPercentage,
+                  cashierName: cashierName,
                 );
               },
               icon: const Icon(Icons.share_rounded),
@@ -846,6 +1042,10 @@ class _CartScreenState extends State<CartScreen> {
                   kembalian,
                   items,
                   paymentMethod: paymentMethod,
+                  taxAmount: taxAmount,
+                  serviceChargeAmount: serviceChargeAmount,
+                  taxPercentage: taxPercentage,
+                  cashierName: cashierName,
                 );
               },
               icon: const Icon(Icons.print),
