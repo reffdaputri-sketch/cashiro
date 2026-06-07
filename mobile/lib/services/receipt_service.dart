@@ -69,7 +69,7 @@ class ReceiptService {
                   ),
                 ),
               if (showLogo && logoImage != null) pw.SizedBox(height: 5),
-              if (showStoreName) pw.Center(child: pw.Text(storeInfo['storeName'] ?? 'Toko', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16))),
+              if (showStoreName) pw.Center(child: pw.Text(storeInfo['storeName'] ?? 'Toko', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))),
               if (showAddress) pw.Center(child: pw.Text(storeInfo['address'] ?? '', style: const pw.TextStyle(fontSize: 10))),
               if (showPhone) pw.Center(child: pw.Text(storeInfo['phone'] ?? '', style: const pw.TextStyle(fontSize: 10))),
               if (showStoreName || showAddress || showPhone || showLogo) pw.Divider(),
@@ -272,7 +272,7 @@ class ReceiptService {
         }
 
         // Print header
-        if (showStoreName) bluetooth.printCustom(storeInfo['storeName'] ?? 'Toko', 2, 1); // Size 2, Align Center
+        if (showStoreName) bluetooth.printCustom(storeInfo['storeName'] ?? 'Toko', 1, 1); // Size 1 (Medium), Align Center
         if (showAddress && storeInfo['address'] != null) bluetooth.printCustom(storeInfo['address'], 0, 1);
         if (showPhone && storeInfo['phone'] != null) bluetooth.printCustom(storeInfo['phone'], 0, 1);
         if (showStoreName || showAddress || showPhone || showLogo) bluetooth.printNewLine();
