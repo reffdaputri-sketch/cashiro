@@ -14,10 +14,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get license key from environment variable
-  const licenseKey = process.env.LICENSE_KEY;
   // Get the domain of the current request
   const domain = request.headers.get('host') || 'unknown';
+
+  // Pengecualian (Whitelist) untuk domain admin utama (cashiro.web.id) dan localhost
+  if (
+    domain.includes('cashiro.web.id') || 
+    domain.includes('localhost') || 
+    domain.includes('127.0.0.1')
+  ) {
+    return NextResponse.next();
+  }
+
+  // Get license key from environment variable
+  const licenseKey = process.env.LICENSE_KEY;
 
   if (!licenseKey) {
     // Redirect to unauthorized page if no license key is found
