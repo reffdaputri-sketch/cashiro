@@ -82,7 +82,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
     if (tableParam) {
       setOrderType('dine_in');
       setTableNumber(tableParam);
-      setCourierName(`Dine-in (Meja ${tableParam})`);
+      setCourierName(`Ambil di Tempat (Meja/Catatan: ${tableParam})`);
       setShippingCost(0);
     }
   }, [tableParam]);
@@ -91,7 +91,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
     if (step === 'checkout') {
       if (orderType === 'dine_in') {
         setShippingCost(0);
-        setCourierName(`Dine-in (Meja ${tableNumber})`);
+        setCourierName(`Ambil di Tempat (Meja/Catatan: ${tableNumber})`);
       } else if (isLocalCourierActive) {
         setShippingCost(localCourierFee);
         setCourierName('Kurir Toko');
@@ -210,7 +210,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
 
     if (orderType === 'dine_in') {
       if (!tableNumber.trim()) {
-        setError('Nomor Meja wajib diisi.');
+        setError('Info Pengambilan (Catatan / Meja) wajib diisi.');
         return;
       }
     } else {
@@ -245,7 +245,7 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
     try {
       let fullAddress = address;
       if (orderType === 'dine_in') {
-        fullAddress = `Dine-in (Makan di Tempat) - Meja ${tableNumber}`;
+        fullAddress = `Ambil di Tempat - Meja/Catatan: ${tableNumber}`;
       } else if (!isLocalCourierActive) {
         const prov = provinces.find(p => p.province_id === selectedProvinceId)?.province || '';
         const city = cities.find(c => c.city_id === selectedCityId)?.city_name || '';
@@ -298,8 +298,8 @@ export default function CartDrawer({ slug, onClose, storeCityId, bankName, bankA
           waMessage = `Halo Kak, saya ada pesanan baru dari Toko Online:
 Nama: ${name || 'Anonim'}
 No. HP: ${phone || '-'}
-Tipe Pesanan: Makan di Tempat (Dine-in)
-Nomor Meja: ${tableNumber}
+Tipe Pesanan: Ambil di Tempat
+Nomor Meja/Catatan: ${tableNumber}
 
 *Pesanan:*
 ${items.map(i => `- ${i.name} (${i.qty}x)`).join('\n')}
@@ -411,7 +411,7 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             {tableParam ? (
               <div className="shipping-box" style={{ marginBottom: 16, border: '1px solid #10b981', background: '#ecfdf5', padding: '12px', borderRadius: '8px' }}>
                 <p style={{ fontSize: 13, color: '#047857', fontWeight: 'bold', margin: 0 }}>
-                  🍽️ Makan di Tempat (Dine-in) - Meja {tableNumber}
+                  🛍️ Ambil di Tempat - Meja/Catatan: {tableNumber}
                 </p>
                 <p style={{ fontSize: 11, color: '#065f46', margin: '4px 0 0 0' }}>
                   Nomor meja terdeteksi dari QR Code.
@@ -426,11 +426,11 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
                     onClick={() => {
                       setOrderType('dine_in');
                       setShippingCost(0);
-                      setCourierName(`Dine-in (Meja ${tableNumber})`);
+                      setCourierName(`Ambil di Tempat (Meja/Catatan: ${tableNumber})`);
                     }}
                     style={{ flex: 1, padding: '10px', fontSize: '13px' }}
                   >
-                    🍽️ Makan di Tempat
+                    🛍️ Ambil di Tempat
                   </button>
                   <button
                     className={`payment-option ${orderType === 'delivery' ? 'active' : ''}`}
@@ -455,14 +455,14 @@ Mohon segera saya transfer ya Kak!` : 'Tolong segera diproses ya, terima kasih!'
             {/* Nomor Meja Input (hanya jika Dine-in dan tidak dipaksa oleh QR) */}
             {orderType === 'dine_in' && !tableParam && (
               <div style={{ marginBottom: 16 }}>
-                <label className="form-label">Nomor Meja</label>
+                <label className="form-label">Catatan Pengambilan / No. Meja</label>
                 <input
                   className="form-input"
-                  placeholder="Contoh: 05, 12, VIP-1"
+                  placeholder="Contoh: Plat Nomor / Baju Merah / Meja 05"
                   value={tableNumber}
                   onChange={(e) => {
                     setTableNumber(e.target.value);
-                    setCourierName(`Dine-in (Meja ${e.target.value})`);
+                    setCourierName(`Ambil di Tempat (Meja/Catatan: ${e.target.value})`);
                   }}
                 />
               </div>
