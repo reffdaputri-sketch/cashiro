@@ -57,9 +57,11 @@ class ReceiptService {
       pw.Page(
         pageFormat: PdfPageFormat.roll57,
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+          return pw.DefaultTextStyle(
+            style: const pw.TextStyle(fontSize: 10),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
               if (showLogo && logoImage != null)
                 pw.Center(
                   child: pw.Container(
@@ -161,7 +163,7 @@ class ReceiptService {
               if (showTransactionId) pw.SizedBox(height: 10),
               if (footerText.isNotEmpty) pw.Center(child: pw.Text(footerText, style: const pw.TextStyle(fontSize: 10), textAlign: pw.TextAlign.center)),
             ],
-          );
+          ));
         },
       ),
     );
