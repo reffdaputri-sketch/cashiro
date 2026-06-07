@@ -17,9 +17,10 @@ export async function proxy(request: NextRequest) {
   // Get the domain of the current request
   const domain = request.headers.get('host') || 'unknown';
 
-  // Pengecualian (Whitelist) untuk domain admin utama (cashiro.web.id) dan localhost
+  // Pengecualian (Whitelist) untuk domain admin utama (cashiro.web.id, cashiro.vercel.app) dan localhost
   if (
     domain.includes('cashiro.web.id') || 
+    domain.includes('cashiro.vercel.app') || 
     domain.includes('localhost') || 
     domain.includes('127.0.0.1')
   ) {
