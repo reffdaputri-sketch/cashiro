@@ -8,16 +8,6 @@ class Product {
   final int stock;
   final String? code;
   final String? imagePath;
-import 'package:mobile/models/product_variation.dart';
-import 'package:mobile/models/product_bundle_item.dart';
-
-class Product {
-  final int? id;
-  final String name;
-  final double price;
-  final int stock;
-  final String? code;
-  final String? imagePath;
   final DateTime createdAt;
   final double costPrice;
   final String? category;
