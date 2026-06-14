@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'kiosly.db');
     return await openDatabase(
       path,
-      version: 20,
+      version: 25,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -254,6 +254,78 @@ class DatabaseService {
         // ignore
       }
     }
+    
+    if (oldVersion < 21) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS suppliers(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            address TEXT,
+            created_at TEXT NOT NULL,
+            is_synced INTEGER DEFAULT 0
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS stock_opname_history(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            old_stock INTEGER NOT NULL,
+            new_stock INTEGER NOT NULL,
+            supplier_id INTEGER,
+            notes TEXT,
+            created_at TEXT NOT NULL,
+            is_synced INTEGER DEFAULT 0,
+            FOREIGN KEY(product_id) REFERENCES products(id),
+            FOREIGN KEY(supplier_id) REFERENCES suppliers(id)
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS product_bundles(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bundle_product_id INTEGER NOT NULL,
+            item_product_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL,
+            is_synced INTEGER DEFAULT 0,
+            FOREIGN KEY(bundle_product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY(item_product_id) REFERENCES products(id) ON DELETE CASCADE
+          )
+        ''');
+      } catch (e) {
+        // Kolom/tabel mungkin sudah ada
+      }
+    }
+
+    if (oldVersion < 22) {
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN order_type TEXT DEFAULT "Dine In"');
+        await db.execute('ALTER TABLE transactions ADD COLUMN table_number TEXT');
+        await db.execute('ALTER TABLE transaction_items ADD COLUMN notes TEXT');
+      } catch (e) {
+        // Kolom mungkin sudah ada
+      }
+    }
+
+    if (oldVersion < 23) {
+      try {
+        await db.execute('ALTER TABLE transaction_items ADD COLUMN variation_id INTEGER');
+      } catch (e) {}
+    }
+
+    if (oldVersion < 24) {
+      try {
+        await db.execute('ALTER TABLE shifts ADD COLUMN cashier_name TEXT');
+      } catch (e) {}
+    }
+
+    if (oldVersion < 25) {
+      try {
+        await db.execute("ALTER TABLE transactions ADD COLUMN kitchen_status TEXT DEFAULT ''");
+      } catch (e) {}
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -301,6 +373,7 @@ class DatabaseService {
         end_cash_expected REAL,
         end_cash_actual REAL,
         status TEXT DEFAULT 'Open',
+        cashier_name TEXT,
         is_synced INTEGER DEFAULT 0
       )
     ''');
@@ -319,6 +392,9 @@ class DatabaseService {
         service_charge_amount REAL DEFAULT 0,
         cashier_name TEXT,
         tax_percentage REAL,
+        order_type TEXT DEFAULT 'Dine In',
+        table_number TEXT,
+        kitchen_status TEXT DEFAULT '',
         is_synced INTEGER DEFAULT 0,
         FOREIGN KEY (customer_id) REFERENCES customers (id),
         FOREIGN KEY(shift_id) REFERENCES shifts(id)
@@ -334,6 +410,8 @@ class DatabaseService {
         price_at_sale REAL NOT NULL,
         cost_at_sale REAL DEFAULT 0.0,
         returned_qty INTEGER DEFAULT 0,
+        notes TEXT,
+        variation_id INTEGER,
         is_synced INTEGER DEFAULT 0,
         FOREIGN KEY(transaction_id) REFERENCES transactions(id),
         FOREIGN KEY(product_id) REFERENCES products(id)
@@ -390,6 +468,44 @@ class DatabaseService {
         FOREIGN KEY(transaction_id) REFERENCES transactions(id)
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE suppliers(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT,
+        address TEXT,
+        created_at TEXT NOT NULL,
+        is_synced INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE stock_opname_history(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        old_stock INTEGER NOT NULL,
+        new_stock INTEGER NOT NULL,
+        supplier_id INTEGER,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        is_synced INTEGER DEFAULT 0,
+        FOREIGN KEY(product_id) REFERENCES products(id),
+        FOREIGN KEY(supplier_id) REFERENCES suppliers(id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE product_bundles(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bundle_product_id INTEGER NOT NULL,
+        item_product_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        is_synced INTEGER DEFAULT 0,
+        FOREIGN KEY(bundle_product_id) REFERENCES products(id) ON DELETE CASCADE,
+        FOREIGN KEY(item_product_id) REFERENCES products(id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   // Helper methods
@@ -402,6 +518,31 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> getAll(String table, {String? orderBy, String? where, List<dynamic>? whereArgs}) async {
     final db = await database;
     return await db.query(table, orderBy: orderBy, where: where, whereArgs: whereArgs);
+  }
+
+  Future<void> clearAllData() async {
+    final db = await database;
+    final List<String> tables = [
+      'product_variations',
+      'transaction_items',
+      'debt_payments',
+      'product_bundles',
+      'stock_opname_history',
+      'transactions',
+      'products',
+      'shifts',
+      'expenses',
+      'customers',
+      'categories',
+      'staff',
+      'suppliers'
+    ];
+    await db.transaction((txn) async {
+      for (final table in tables) {
+        await txn.delete(table);
+      }
+    });
+    hasUnsyncedChanges = true;
   }
 
   Future<Map<String, dynamic>?> getById(String table, int id) async {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
     Download,
@@ -18,11 +18,6 @@ import {
     ArrowLeft,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-const APP_VERSION = '1.0.0';
-const APP_SIZE = '128 MB';
-const LAST_UPDATED = '30 Mei 2025';
-const APK_URL = '/Cashiro.apk';
 
 const features = [
     { icon: <Package size={20} />, label: 'Manajemen Stok' },
@@ -73,6 +68,27 @@ const steps = [
 export default function DownloadPage() {
     const [downloading, setDownloading] = useState(false);
     const [downloaded, setDownloaded] = useState(false);
+    const [appSettings, setAppSettings] = useState({
+        apk_url: '/Cashiro.apk',
+        app_version: '1.0.0',
+        app_size: '128 MB',
+        last_updated: '30 Mei 2025'
+    });
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch('/api/settings/app');
+                const data = await res.json();
+                if (res.ok && data.settings) {
+                    setAppSettings(data.settings);
+                }
+            } catch (err) {
+                console.error('Failed to load settings', err);
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const handleDownload = () => {
         setDownloading(true);
@@ -147,9 +163,21 @@ export default function DownloadPage() {
 
                             {/* Download Button */}
                             <a
-                                href={APK_URL}
-                                download="Cashiro.apk"
-                                onClick={handleDownload}
+                                href={appSettings.apk_url}
+                                download={appSettings.apk_url.startsWith('/') ? "Cashiro.apk" : undefined}
+                                target={appSettings.apk_url.startsWith('/') ? undefined : "_blank"}
+                                rel={appSettings.apk_url.startsWith('/') ? undefined : "noopener noreferrer"}
+                                onClick={(e) => {
+                                    if (appSettings.apk_url.startsWith('/')) {
+                                        handleDownload();
+                                    } else {
+                                        setDownloading(true);
+                                        setTimeout(() => {
+                                            setDownloading(false);
+                                            setDownloaded(true);
+                                        }, 1000);
+                                    }
+                                }}
                                 className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg bg-white text-[var(--primary)] shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 select-none cursor-pointer"
                             >
                                 {downloaded ? (
@@ -175,11 +203,11 @@ export default function DownloadPage() {
 
                             {/* Meta */}
                             <div className="mt-5 flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-1 text-sm text-blue-200">
-                                <span>Versi {APP_VERSION}</span>
+                                <span>Versi {appSettings.app_version}</span>
                                 <span>·</span>
-                                <span>{APP_SIZE}</span>
+                                <span>{appSettings.app_size}</span>
                                 <span>·</span>
-                                <span>Diperbarui {LAST_UPDATED}</span>
+                                <span>Diperbarui {appSettings.last_updated}</span>
                                 <span>·</span>
                                 <span>Android 7.0+</span>
                                 <span>·</span>
@@ -304,22 +332,15 @@ export default function DownloadPage() {
 
                     {/* Bottom CTA */}
                     <div className="mt-14 text-center">
-                        <p className="text-[var(--muted-foreground)] mb-5">Butuh bantuan? Hubungi tim support kami.</p>
                         <div className="flex flex-col sm:flex-row gap-3 justify-center">
                             <a
-                                href={APK_URL}
-                                download="Cashiro.apk"
+                                href={appSettings.apk_url}
+                                download={appSettings.apk_url.startsWith('/') ? "Cashiro.apk" : undefined}
+                                target={appSettings.apk_url.startsWith('/') ? undefined : "_blank"}
+                                rel={appSettings.apk_url.startsWith('/') ? undefined : "noopener noreferrer"}
                                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-[var(--primary)] text-white font-semibold hover:opacity-90 hover:scale-105 active:scale-95 transition-all shadow-md"
                             >
                                 <Download size={20} /> Download APK Sekarang
-                            </a>
-                            <a
-                                href="https://wa.me/6285157578692"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl border-2 border-[var(--primary)] text-[var(--primary)] font-semibold hover:bg-[var(--primary)] hover:text-white transition-all"
-                            >
-                                <ChevronRight size={20} /> Hubungi via WhatsApp
                             </a>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ import 'package:mobile/screens/theme_settings_screen.dart';
 import 'package:mobile/services/backup_service.dart';
 import 'package:mobile/providers/product_provider.dart';
 import 'package:mobile/services/sync_service.dart';
+import 'package:mobile/services/database_service.dart';
 import 'dart:io';
 
 class ProfileScreen extends StatefulWidget {
@@ -178,32 +179,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
                   if (info['storeName'] != null)
                     Text(info['storeName']!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  ListTile(
-                    leading: const Icon(Icons.person),
-                    title: const Text('Pemilik'),
-                    subtitle: Text(info['ownerName'] ?? '-'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.phone),
-                    title: const Text('Telepon'),
-                    subtitle: Text(info['phone'] ?? '-'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.location_on),
-                    title: const Text('Alamat'),
-                    subtitle: Text(info['address'] ?? '-'),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.money_off, color: Colors.red),
-                    title: const Text('Manajemen Pengeluaran'),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ExpenseScreen()),
-                      );
+                  const SizedBox(height: 20),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.restaurant_menu, color: Colors.orange),
+                    title: const Text('Mode Restoran / F&B'),
+                    subtitle: const Text('Matikan untuk mode kasir ritel biasa'),
+                    value: auth.isFnbMode,
+                    onChanged: (bool value) async {
+                      await auth.updateFnbMode(value);
                     },
                   ),
                   const Divider(),
@@ -334,23 +317,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: const Text('Generate Demo Data'),
                     subtitle: const Text('Tambah 15 produk contoh (Random)'),
                     onTap: () async {
-                      final confirm = await showDialog<bool>(
+                      final type = await showDialog<String>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text('Generate Data?'),
-                          content: const Text('Ini akan menambahkan 15 produk contoh ke database.'),
+                          title: const Text('Pilih Jenis Toko'),
+                          content: const Text('Pilih jenis data demo yang ingin ditambahkan:'),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Generate'),
-                            ),
+                            TextButton(onPressed: () => Navigator.pop(ctx, 'sembako'), child: const Text('Sembako')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, 'fnb'), child: const Text('F&B')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, 'retail'), child: const Text('Retail')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Batal', style: TextStyle(color: Colors.red))),
                           ],
                         ),
                       );
 
-                      if (confirm == true) {
-                        await Provider.of<ProductProvider>(context, listen: false).generateDemoData();
+                      if (type != null) {
+                        await Provider.of<ProductProvider>(context, listen: false).generateDemoData(type);
                         await _loadUnsyncedCount();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data demo berhasil ditambahkan!')));
@@ -362,12 +344,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Reset Semua Data?'),
+                            content: const Text(
+                              'PERINGATAN: Ini akan menghapus SELURUH data lokal di perangkat ini (produk, transaksi, dll). Data yang belum disinkronkan ke cloud akan hilang secara permanen. Lanjutkan?',
+                            ),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Ya, Reset'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true) {
+                          setState(() {
+                            _isLoading = true;
+                          });
+                          try {
+                            final dbService = DatabaseService();
+                            await dbService.clearAllData();
+                            await _loadUnsyncedCount();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Semua data lokal berhasil dihapus.')));
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mereset data: $e')));
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          }
+                        }
+                      },
+                      child: const Text('Hapus Seluruh Data Lokal'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                       onPressed: () async {
                         await Provider.of<AuthProvider>(context, listen: false).logout();
                       },
-                      child: const Text('Keluar (Reset)'),
+                      child: const Text('Keluar Akun'),
                     ),
                   ),
                 ],

@@ -24,6 +24,9 @@ class AuthService {
   static const String KEY_STORE_LAT = 'store_lat';
   static const String KEY_STORE_LNG = 'store_lng';
   static const String KEY_MAX_DELIVERY_RADIUS = 'max_delivery_radius';
+  static const String KEY_TOTAL_TABLES = 'total_tables';
+  static const String KEY_IS_FNB_MODE = 'is_fnb_mode';
+
   Future<bool> isRegistered() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(KEY_IS_REGISTERED) ?? false;
@@ -98,10 +101,12 @@ class AuthService {
       'storeLat': prefs.getDouble(KEY_STORE_LAT)?.toString() ?? '0.0',
       'storeLng': prefs.getDouble(KEY_STORE_LNG)?.toString() ?? '0.0',
       'maxDeliveryRadius': prefs.getDouble(KEY_MAX_DELIVERY_RADIUS)?.toString() ?? '0.0',
+      'totalTables': prefs.getInt(KEY_TOTAL_TABLES)?.toString() ?? '0',
+      'isFnbMode': prefs.getBool(KEY_IS_FNB_MODE)?.toString() ?? 'true',
     };
   }
 
-  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius}) async {
+  Future<void> updateStoreInfo(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius, int? totalTables, bool? isFnbMode}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(KEY_STORE_NAME, storeName);
     await prefs.setString(KEY_OWNER_NAME, ownerName);
@@ -119,6 +124,8 @@ class AuthService {
     if (storeLat != null) await prefs.setDouble(KEY_STORE_LAT, storeLat);
     if (storeLng != null) await prefs.setDouble(KEY_STORE_LNG, storeLng);
     if (maxDeliveryRadius != null) await prefs.setDouble(KEY_MAX_DELIVERY_RADIUS, maxDeliveryRadius);
+    if (totalTables != null) await prefs.setInt(KEY_TOTAL_TABLES, totalTables);
+    if (isFnbMode != null) await prefs.setBool(KEY_IS_FNB_MODE, isFnbMode);
   }
 
   Future<void> updatePin(String newPin) async {

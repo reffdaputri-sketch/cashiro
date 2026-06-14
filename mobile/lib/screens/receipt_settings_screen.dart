@@ -17,6 +17,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
   bool _showPhone = true;
   bool _showDate = true;
   bool _showTransactionId = true;
+  String _paperSize = '58mm';
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
       _showPhone = prefs.getBool('receipt_show_phone') ?? true;
       _showDate = prefs.getBool('receipt_show_date') ?? true;
       _showTransactionId = prefs.getBool('receipt_show_transaction_id') ?? true;
+      _paperSize = prefs.getString('receipt_paper_size') ?? '58mm';
     });
   }
 
@@ -46,6 +48,7 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
     await prefs.setBool('receipt_show_phone', _showPhone);
     await prefs.setBool('receipt_show_date', _showDate);
     await prefs.setBool('receipt_show_transaction_id', _showTransactionId);
+    await prefs.setString('receipt_paper_size', _paperSize);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -110,6 +113,28 @@ class _ReceiptSettingsScreenState extends State<ReceiptSettingsScreen> {
               ),
               child: Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Ukuran Kertas Printer', style: TextStyle(fontSize: 16)),
+                        DropdownButton<String>(
+                          value: _paperSize,
+                          items: const [
+                            DropdownMenuItem(value: '58mm', child: Text('58mm (Kecil)')),
+                            DropdownMenuItem(value: '80mm', child: Text('80mm (Besar)')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _paperSize = val);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
                   SwitchListTile(
                     title: const Text('Tampilkan Logo Outlet'),
                     value: _showLogo,

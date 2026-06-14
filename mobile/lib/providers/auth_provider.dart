@@ -20,6 +20,7 @@ class AuthProvider with ChangeNotifier {
   Staff? get currentStaff => _currentStaff;
   bool get isOwner => _isAuthenticated && _currentStaff == null;
   bool get isDemo => _storeInfo['storeId'] == 'DEMO-STORE-ID';
+  bool get isFnbMode => _storeInfo['isFnbMode'] != 'false';
   Map<String, String> get storeInfo => _storeInfo;
 
   Future<void> checkRegistration() async {
@@ -108,8 +109,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius}) async {
-    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners, isLocalCourierActive: isLocalCourierActive, localCourierFee: localCourierFee, storeLat: storeLat, storeLng: storeLng, maxDeliveryRadius: maxDeliveryRadius);
+  Future<void> updateStore(String storeName, String ownerName, String phone, String address, String? imagePath, {int? cityId, String? bankName, String? bankAccount, String? bankAccountName, String? qrisPayload, List<String>? banners, bool? isLocalCourierActive, double? localCourierFee, double? storeLat, double? storeLng, double? maxDeliveryRadius, int? totalTables, bool? isFnbMode}) async {
+    await _authService.updateStoreInfo(storeName, ownerName, phone, address, imagePath, cityId: cityId, bankName: bankName, bankAccount: bankAccount, bankAccountName: bankAccountName, qrisPayload: qrisPayload, banners: banners, isLocalCourierActive: isLocalCourierActive, localCourierFee: localCourierFee, storeLat: storeLat, storeLng: storeLng, maxDeliveryRadius: maxDeliveryRadius, totalTables: totalTables, isFnbMode: isFnbMode);
     await checkRegistration();
     
     // Update in cloud if online (license key is not mock)
@@ -141,6 +142,19 @@ class AuthProvider with ChangeNotifier {
         debugPrint('Cloud profile update failed: $e');
       }
     }
+    notifyListeners();
+  }
+
+  Future<void> updateFnbMode(bool isFnbMode) async {
+    await _authService.updateStoreInfo(
+      _storeInfo['storeName'] ?? '',
+      _storeInfo['ownerName'] ?? '',
+      _storeInfo['phone'] ?? '',
+      _storeInfo['address'] ?? '',
+      _storeInfo['imagePath'],
+      isFnbMode: isFnbMode,
+    );
+    await checkRegistration();
     notifyListeners();
   }
 

@@ -46,6 +46,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
   double? _storeLng;
   late TextEditingController _maxDeliveryRadiusController;
   bool _isFetchingLocation = false;
+  late TextEditingController _totalTablesController;
 
   @override
   void initState() {
@@ -66,6 +67,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _storeLat = double.tryParse(info['storeLat'] ?? '');
     _storeLng = double.tryParse(info['storeLng'] ?? '');
     _maxDeliveryRadiusController = TextEditingController(text: info['maxDeliveryRadius'] ?? '0.0');
+    _totalTablesController = TextEditingController(text: info['totalTables'] ?? '0');
     
     final cityIdStr = info['cityId'];
     if (cityIdStr != null && cityIdStr.isNotEmpty) {
@@ -144,6 +146,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
     _qrisPayloadController.dispose();
     _localCourierFeeController.dispose();
     _maxDeliveryRadiusController.dispose();
+    _totalTablesController.dispose();
     super.dispose();
   }
 
@@ -248,6 +251,7 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
         storeLat: _storeLat,
         storeLng: _storeLng,
         maxDeliveryRadius: double.tryParse(_maxDeliveryRadiusController.text) ?? 0.0,
+        totalTables: int.tryParse(_totalTablesController.text) ?? 0,
       );
       if (mounted) {
         setState(() => _isUploadingBanners = false);
@@ -545,6 +549,13 @@ class _EditStoreScreenState extends State<EditStoreScreen> {
                 decoration: const InputDecoration(labelText: 'Alamat Lengkap'),
                 maxLines: 3,
                 validator: (value) => value!.isEmpty ? 'Harap isi alamat' : null,
+              ),
+              const SizedBox(height: 16),
+              const Text('Pengaturan Meja Kasir', style: TextStyle(fontWeight: FontWeight.bold)),
+              TextFormField(
+                controller: _totalTablesController,
+                decoration: const InputDecoration(labelText: 'Jumlah Meja Tersedia (0 jika tidak ada)'),
+                keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
               const Text('Pengaturan Kurir Lokal', style: TextStyle(fontWeight: FontWeight.bold)),

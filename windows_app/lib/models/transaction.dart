@@ -7,6 +7,8 @@ class TransactionModel {
   final String status;
   final double taxAmount;
   final double serviceChargeAmount;
+  final String orderType;
+  final String? tableNumber;
 
   TransactionModel({
     this.id,
@@ -17,6 +19,8 @@ class TransactionModel {
     this.status = 'Selesai',
     this.taxAmount = 0.0,
     this.serviceChargeAmount = 0.0,
+    this.orderType = 'Dine In',
+    this.tableNumber,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +33,8 @@ class TransactionModel {
       'status': status,
       'tax_amount': taxAmount,
       'service_charge_amount': serviceChargeAmount,
+      'order_type': orderType,
+      'table_number': tableNumber,
     };
   }
 
@@ -42,6 +48,8 @@ class TransactionModel {
       status: map['status'] ?? 'Selesai',
       taxAmount: map['tax_amount'] ?? 0.0,
       serviceChargeAmount: map['service_charge_amount'] ?? 0.0,
+      orderType: map['order_type'] ?? 'Dine In',
+      tableNumber: map['table_number'],
     );
   }
 }
@@ -53,6 +61,8 @@ class TransactionItem {
   final int quantity;
   final double priceAtSale;
   final int returnedQty;
+  final String? notes;
+  final int? variationId;
 
   TransactionItem({
     this.id,
@@ -61,6 +71,8 @@ class TransactionItem {
     required this.quantity,
     required this.priceAtSale,
     this.returnedQty = 0,
+    this.notes,
+    this.variationId,
   });
 
   Map<String, dynamic> toMap() {
@@ -71,6 +83,8 @@ class TransactionItem {
       'quantity': quantity,
       'price_at_sale': priceAtSale,
       'returned_qty': returnedQty,
+      'notes': notes,
+      'variation_id': variationId,
     };
   }
 
@@ -82,6 +96,8 @@ class TransactionItem {
       quantity: map['quantity'],
       priceAtSale: map['price_at_sale'],
       returnedQty: map['returned_qty'] as int? ?? 0,
+      notes: map['notes'],
+      variationId: map['variation_id'],
     );
   }
 }

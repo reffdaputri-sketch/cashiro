@@ -10,6 +10,7 @@ import 'package:mobile/providers/auth_provider.dart';
 import 'package:mobile/providers/shift_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:mobile/utils/qris_helper.dart';
+import 'package:mobile/services/sync_service.dart';
 
 class CartScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -115,6 +116,11 @@ class _CartScreenState extends State<CartScreen> {
                                         item.variation != null ? '${item.product.name} (${item.variation!.name})' : item.product.name,
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                       ),
+                                      if (item.notes != null && item.notes!.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2),
+                                          child: Text('Catatan: ${item.notes}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.orange)),
+                                        ),
                                       if (item.discount > 0) ...[
                                         Row(
                                           children: [
@@ -169,34 +175,54 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                             // ➕ Controls
-                            Container(
-                              height: 32,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey[300]!),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove, size: 14),
-                                    onPressed: () => cart.decrementQuantity(item),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 32),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.note_alt_outlined, color: Colors.blue, size: 20),
+                                      onPressed: () => _showNotesDialog(context, cart, item),
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                      onPressed: () => cart.removeItem(item),
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey[300]!),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                  IconButton(
-                                    icon: const Icon(Icons.add, size: 14),
-                                    onPressed: () => cart.incrementQuantity(item),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 32),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove, size: 14),
+                                        onPressed: () => cart.decrementQuantity(item),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32),
+                                      ),
+                                      Text('${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      IconButton(
+                                        icon: const Icon(Icons.add, size: 14),
+                                        onPressed: () => cart.incrementQuantity(item),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                              onPressed: () => cart.removeItem(item),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -216,94 +242,103 @@ class _CartScreenState extends State<CartScreen> {
               children: [
                 _buildSummaryRow('Total Item:', '${cart.items.fold(0, (sum, i) => sum + i.quantity)} item'),
                 _buildSummaryRow('Subtotal:', currencyFormatter.format(cart.subtotal)),
-                InkWell(
-                  onTap: () => _showDiscountDialog(context, cart),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Text('Diskon Transaksi:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
-                            Text(
-                              cart.discount > 0 ? ' Ubah' : ' + Tambah',
-                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '- ${currencyFormatter.format(cart.discount)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: cart.discount > 0 ? Colors.red : Colors.grey[400],
+                Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: Text('Diskon, Pajak & Biaya Tambahan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
+                    children: [
+                      InkWell(
+                        onTap: () => _showDiscountDialog(context, cart),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Text('Diskon Transaksi:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                                  Text(
+                                    cart.discount > 0 ? ' Ubah' : ' + Tambah',
+                                    style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '- ${currencyFormatter.format(cart.discount)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: cart.discount > 0 ? Colors.red : Colors.grey[400],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _showTaxDialog(context, cart),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Text(cart.taxEnabled && cart.manualTax < 0 ? 'Pajak (${cart.taxPercentage.toStringAsFixed(1)}%):' : 'Pajak (PPN):', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
-                            Text(
-                              cart.taxAmount > 0 ? ' Ubah' : ' + Tambah',
-                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '+ ${currencyFormatter.format(cart.taxAmount)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: cart.taxAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                      ),
+                      InkWell(
+                        onTap: () => _showTaxDialog(context, cart),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(cart.taxEnabled && cart.manualTax < 0 ? 'Pajak (${cart.taxPercentage.toStringAsFixed(1)}%):' : 'Pajak (PPN):', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                                  Text(
+                                    cart.taxAmount > 0 ? ' Ubah' : ' + Tambah',
+                                    style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '+ ${currencyFormatter.format(cart.taxAmount)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: cart.taxAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _showOtherFeeDialog(context, cart),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Text(cart.serviceChargeEnabled && cart.manualOtherFee < 0 ? 'Biaya Lainnya (${cart.serviceChargePercentage.toStringAsFixed(1)}%):' : 'Biaya Lainnya:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                            const SizedBox(width: 6),
-                            Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
-                            Text(
-                              cart.serviceChargeAmount > 0 ? ' Ubah' : ' + Tambah',
-                              style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '+ ${currencyFormatter.format(cart.serviceChargeAmount)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: cart.serviceChargeAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                      ),
+                      InkWell(
+                        onTap: () => _showOtherFeeDialog(context, cart),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(cart.serviceChargeEnabled && cart.manualOtherFee < 0 ? 'Biaya Lainnya (${cart.serviceChargePercentage.toStringAsFixed(1)}%):' : 'Biaya Lainnya:', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                                  const SizedBox(width: 6),
+                                  Icon(Icons.edit_note, size: 16, color: Colors.blue[600]),
+                                  Text(
+                                    cart.serviceChargeAmount > 0 ? ' Ubah' : ' + Tambah',
+                                    style: TextStyle(color: Colors.blue[600], fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '+ ${currencyFormatter.format(cart.serviceChargeAmount)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: cart.serviceChargeAmount > 0 ? Colors.orange[700] : Colors.grey[400],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ]
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -322,20 +357,46 @@ class _CartScreenState extends State<CartScreen> {
                       flex: 1,
                       child: OutlinedButton.icon(
                         onPressed: cart.items.isEmpty ? null : () => cart.clearCart(),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Hapus'),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('Batal'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.grey[700],
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    if (Provider.of<AuthProvider>(context).isFnbMode) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton.icon(
+                          onPressed: cart.items.isEmpty ? null : () async {
+                             final auth = Provider.of<AuthProvider>(context, listen: false);
+                             final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
+                             final cashierName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Kasir';
+                             final tId = await cart.saveDraftOrder(shiftId: shiftId, cashierName: cashierName, taxPercentage: cart.appliedTaxPercentage);
+                             if (tId != null && context.mounted) {
+                                SyncService().uploadLocalChanges();
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan dikirim ke dapur / disimpan!'), backgroundColor: Colors.green));
+                                if (!widget.isEmbedded) Navigator.pop(context);
+                             }
+                          },
+                          icon: const Icon(Icons.save, size: 18),
+                          label: const Text('Simpan'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
+                      flex: 1,
                       child: ElevatedButton.icon(
                         onPressed: cart.items.isEmpty ? null : () => _showPaymentSelection(context, cart),
-                        icon: const Icon(Icons.credit_card),
+                        icon: const Icon(Icons.credit_card, size: 18),
                         label: const Text('Bayar'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(context).primaryColor,
@@ -517,6 +578,33 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  Future<void> _showNotesDialog(BuildContext context, CartProvider cart, CartItem item) async {
+    final controller = TextEditingController(text: item.notes ?? '');
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Catatan Dapur'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Misal: Pedas, Tanpa Sayur',
+          ),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () {
+              cart.setItemNotes(item, controller.text);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showItemDiscountDialog(BuildContext context, CartProvider cart, CartItem item) async {
     final controller = TextEditingController(text: item.discount == 0.0 ? '' : item.discount.toString());
     await showDialog(
@@ -547,11 +635,13 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _showPaymentSelection(BuildContext context, CartProvider cart) {
+    bool sendToKitchen = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Container(
+      builder: (context) => StatefulBuilder(
+        builder: (ctx, setState) => Container(
         padding: EdgeInsets.only(
           left: 20, right: 20, top: 24,
           bottom: MediaQuery.of(context).viewInsets.bottom + 24,
@@ -618,11 +708,28 @@ class _CartScreenState extends State<CartScreen> {
             const Text('Pilih Metode Pembayaran', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             
-            _buildPaymentOption(context, 'Tunai', Icons.money, cart),
-            _buildPaymentOption(context, 'QRIS', Icons.qr_code_scanner, cart),
-            _buildPaymentOption(context, 'E-Wallet (Dana, OVO, dll)', Icons.account_balance_wallet, cart),
-            _buildPaymentOption(context, 'Hutang / Tempo', Icons.history, cart),
-            _buildPaymentOption(context, 'Belum Bayar (Simpan)', Icons.save, cart),
+            if (Provider.of<AuthProvider>(context, listen: false).isFnbMode)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: SwitchListTile(
+                  title: const Text('Kirim ke Dapur', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Tandai pesanan untuk masuk ke dapur'),
+                  value: sendToKitchen,
+                  onChanged: (val) {
+                    setState(() => sendToKitchen = val);
+                  },
+                ),
+              ),
+            
+            _buildPaymentOption(context, 'Tunai', Icons.money, cart, sendToKitchen),
+            _buildPaymentOption(context, 'QRIS', Icons.qr_code_scanner, cart, sendToKitchen),
+            _buildPaymentOption(context, 'E-Wallet (Dana, OVO, dll)', Icons.account_balance_wallet, cart, sendToKitchen),
+            _buildPaymentOption(context, 'Hutang / Tempo', Icons.history, cart, sendToKitchen),
             
             const SizedBox(height: 16),
             SizedBox(
@@ -648,10 +755,11 @@ class _CartScreenState extends State<CartScreen> {
         ),
         ),
       ),
+      ),
     );
   }
 
-  Widget _buildPaymentOption(BuildContext sheetContext, String label, IconData icon, CartProvider cart) {
+  Widget _buildPaymentOption(BuildContext sheetContext, String label, IconData icon, CartProvider cart, bool sendToKitchen) {
     final primaryColor = Theme.of(this.context).primaryColor;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -671,26 +779,24 @@ class _CartScreenState extends State<CartScreen> {
                return; // Don't close bottom sheet, force user to type name
             }
             Navigator.pop(sheetContext);
-            await _processPayment(this.context, cart, 0, label);
+            await _processPayment(this.context, cart, 0, label, sendToKitchen);
           } else if (label == 'QRIS') {
             final auth = Provider.of<AuthProvider>(this.context, listen: false);
             final qrisPayload = auth.storeInfo['qrisPayload'];
             if (qrisPayload != null && qrisPayload.isNotEmpty) {
               Navigator.pop(sheetContext);
-              await _showQrisDialog(this.context, cart, qrisPayload);
+              await _showQrisDialog(this.context, cart, qrisPayload, sendToKitchen);
             } else {
               Navigator.pop(sheetContext);
-              await _processPayment(this.context, cart, cart.totalAmount, label);
+              await _processPayment(this.context, cart, cart.totalAmount, label, sendToKitchen);
             }
           } else {
             Navigator.pop(sheetContext); // Close selection
             if (label == 'Tunai') {
-              await _showCheckoutDialog(this.context, cart);
-            } else if (label == 'Belum Bayar (Simpan)') {
-              await _processPayment(this.context, cart, 0, 'Belum Bayar');
+              await _showCheckoutDialog(this.context, cart, initialSendToKitchen: sendToKitchen);
             } else {
               // For non-cash, assume paid in full
-              await _processPayment(this.context, cart, cart.totalAmount, label);
+              await _processPayment(this.context, cart, cart.totalAmount, label, sendToKitchen);
             }
           }
         },
@@ -698,7 +804,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Future<void> _showQrisDialog(BuildContext context, CartProvider cart, String staticQris) async {
+  Future<void> _showQrisDialog(BuildContext context, CartProvider cart, String staticQris, bool sendToKitchen) async {
     final dynamicQris = QrisHelper.generateDynamicQris(staticQris, cart.totalAmount);
     
     await showDialog(
@@ -739,7 +845,7 @@ class _CartScreenState extends State<CartScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await _processPayment(context, cart, cart.totalAmount, 'QRIS');
+              await _processPayment(context, cart, cart.totalAmount, 'QRIS', sendToKitchen);
             },
             child: const Text('Sudah Dibayar'),
           ),
@@ -748,7 +854,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Future<void> _processPayment(BuildContext context, CartProvider cart, double paidAmount, String method) async {
+  Future<void> _processPayment(BuildContext context, CartProvider cart, double paidAmount, String method, bool sendToKitchen) async {
     try {
       int? customerId;
       if (_nameController.text.isNotEmpty) {
@@ -777,8 +883,9 @@ class _CartScreenState extends State<CartScreen> {
       final cashierName = auth.currentStaff?.name ?? storeInfo['ownerName'] ?? 'Kasir';
 
       final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
-      final transactionId = await cart.checkout(paidAmount, customerId: customerId, paymentMethod: method, shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct);
+      final transactionId = await cart.checkout(paidAmount, customerId: customerId, paymentMethod: method, shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct, sendToKitchen: sendToKitchen);
       if (context.mounted && transactionId != null) {
+        SyncService().uploadLocalChanges();
         if (method == 'Belum Bayar') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pesanan berhasil disimpan (Belum Bayar)!'), backgroundColor: Colors.orange));
           if (!widget.isEmbedded) Navigator.pop(context);
@@ -795,7 +902,7 @@ class _CartScreenState extends State<CartScreen> {
   }
 
 
-  Future<void> _showCheckoutDialog(BuildContext context, CartProvider cart) async {
+  Future<void> _showCheckoutDialog(BuildContext context, CartProvider cart, {bool initialSendToKitchen = false}) async {
     final paidController = TextEditingController();
     
     // Custom Numeric Keyboard Widget
@@ -838,6 +945,8 @@ class _CartScreenState extends State<CartScreen> {
         ),
       );
     }
+
+    bool sendToKitchen = initialSendToKitchen;
 
     await showDialog(
       context: context,
@@ -890,7 +999,38 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [5000, 10000, 20000, 50000, 100000].map((nominal) => ActionChip(
+                        label: Text('Rp ${NumberFormat.currency(locale: 'id_ID', symbol: '', decimalDigits: 0).format(nominal)}'),
+                        onPressed: () {
+                          paidController.text = nominal.toString();
+                          setState(() {});
+                        },
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 10),
                     buildNumericKeyboard(setState),
+                    const SizedBox(height: 10),
+                    if (Provider.of<AuthProvider>(context, listen: false).isFnbMode)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: SwitchListTile(
+                          title: const Text('Kirim ke Dapur', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Tandai pesanan untuk masuk ke dapur'),
+                          value: sendToKitchen,
+                          onChanged: (val) {
+                            setState(() => sendToKitchen = val);
+                          },
+                        ),
+                      ),
                   ],
                  ),
                ),
@@ -937,12 +1077,13 @@ class _CartScreenState extends State<CartScreen> {
 
                     // Process Checkout
                     final shiftId = Provider.of<ShiftProvider>(context, listen: false).activeShift?['id'] as int?;
-                    final transactionId = await cart.checkout(paid, customerId: customerId, paymentMethod: 'Tunai', shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct);
+                    final transactionId = await cart.checkout(paid, customerId: customerId, paymentMethod: 'Tunai', shiftId: shiftId, cashierName: cashierName, taxPercentage: taxPct, sendToKitchen: sendToKitchen);
                     
                     if (ctx.mounted) {
                       Navigator.pop(ctx); 
                       
                       if (transactionId != null) {
+                        SyncService().uploadLocalChanges();
                         _showReceiptDialog(context, transactionId, total, paid, kembalian, items, storeInfo, taxAmount: tax, serviceChargeAmount: svc, taxPercentage: taxPct, cashierName: cashierName);
                       } else {
                          if (!widget.isEmbedded) Navigator.pop(context);

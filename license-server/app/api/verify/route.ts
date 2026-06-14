@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     // Query the database for the license
     const { data: license, error } = await supabase
-      .from('licenses')
+      .from('web_panel_licenses')
       .select('*')
       .eq('license_key', licenseKey)
       .single();
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     if (!license.registered_domain) {
       // Bind to this domain
       await supabase
-        .from('licenses')
+        .from('web_panel_licenses')
         .update({ registered_domain: domain })
         .eq('id', license.id);
     } else {

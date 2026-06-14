@@ -238,6 +238,8 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildDateFilters(),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(child: ElevatedButton(onPressed: () => _pickDate(true), child: Text(DateFormat('dd/MM/yyyy').format(_startDate)))),
@@ -364,13 +366,17 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
   }
 
   Widget _buildBestSellersReport() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _reportService.getBestSellers(_startDate, _endDate),
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        _reportService.getBestSellers(_startDate, _endDate),
+        _reportService.getBestSellingCategories(_startDate, _endDate),
+      ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final data = snapshot.data!;
+        final data = snapshot.data![0] as List<Map<String, dynamic>>;
+        final categoryData = snapshot.data![1] as List<Map<String, dynamic>>;
         
-        if (data.isEmpty) return const Center(child: Text('Belum ada data penjualan.'));
+        if (data.isEmpty && categoryData.isEmpty) return const Center(child: Text('Belum ada data penjualan.'));
 
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -378,17 +384,39 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Proporsi Penjualan Barang',
+                'Proporsi Kategori Terlaris',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            _buildBestSellersChart(data),
+            _buildBestSellersChart(categoryData),
             const SizedBox(height: 24),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Daftar Barang Terlaris',
+                'Daftar Kategori Terlaris',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...categoryData.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: _getPieColor(index),
+                  child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+                title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.w500)),
+                subtitle: Text('Item Terjual: ${item['total_qty']}'),
+                trailing: Text(_currencyFormatter.format(item['total_sales']), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+              );
+            }).toList(),
+            const Divider(height: 32),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Daftar Produk Terlaris',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -398,8 +426,8 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
               final item = entry.value;
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: _getPieColor(index),
-                  child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  backgroundColor: Colors.grey[200],
+                  child: Text('${index + 1}', style: const TextStyle(color: Colors.black54, fontSize: 12)),
                 ),
                 title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text('Terjual: ${item['total_qty']}'),
@@ -486,18 +514,70 @@ class _ReportScreenState extends State<ReportScreen> with SingleTickerProviderSt
     }
   }
 
+  void _setQuickDateRange(String range) {
+    final now = DateTime.now();
+    setState(() {
+      switch (range) {
+        case 'Hari Ini':
+          _startDate = DateTime(now.year, now.month, now.day);
+          _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'Kemarin':
+          _startDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+          _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59).subtract(const Duration(days: 1));
+          break;
+        case 'Minggu Ini':
+          _startDate = now.subtract(Duration(days: now.weekday - 1));
+          _startDate = DateTime(_startDate.year, _startDate.month, _startDate.day);
+          _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+          break;
+        case 'Bulan Ini':
+          _startDate = DateTime(now.year, now.month, 1);
+          _endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+          break;
+        case 'Tahun Ini':
+          _startDate = DateTime(now.year, 1, 1);
+          _endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+          break;
+      }
+    });
+  }
+
+  Widget _buildDateFilters() {
+    final filters = ['Hari Ini', 'Kemarin', 'Minggu Ini', 'Bulan Ini', 'Tahun Ini'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: filters.map((f) => Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: ActionChip(
+            label: Text(f, style: const TextStyle(fontSize: 12)),
+            onPressed: () => _setQuickDateRange(f),
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
   Widget _buildPaymentMethodsReport() {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: ElevatedButton(onPressed: () => _pickDate(true), child: Text(DateFormat('dd/MM/yyyy').format(_startDate)))),
-              const SizedBox(width: 8),
-              const Text('s/d'),
-              const SizedBox(width: 8),
-              Expanded(child: ElevatedButton(onPressed: () => _pickDate(false), child: Text(DateFormat('dd/MM/yyyy').format(_endDate)))),
+              _buildDateFilters(),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: ElevatedButton(onPressed: () => _pickDate(true), child: Text(DateFormat('dd/MM/yyyy').format(_startDate)))),
+                  const SizedBox(width: 8),
+                  const Text('s/d'),
+                  const SizedBox(width: 8),
+                  Expanded(child: ElevatedButton(onPressed: () => _pickDate(false), child: Text(DateFormat('dd/MM/yyyy').format(_endDate)))),
+                ],
+              ),
             ],
           ),
         ),

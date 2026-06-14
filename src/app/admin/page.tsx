@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X, Smartphone, Wifi, WifiOff, QrCode, Users, TrendingUp, Link2, Edit2, Ban } from 'lucide-react';
+import { ArrowRight, Key, Shield, LogOut, CheckCircle, XCircle, Search, Store, Mail, PlusCircle, Copy, Check, AlertCircle, Wallet, RefreshCw, Clock, X, Smartphone, Wifi, WifiOff, QrCode, Users, TrendingUp, Link2, Edit2, Ban, Settings } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,8 +13,10 @@ export default function AdminDashboard() {
   // Dashboard Data
   const [licenses, setLicenses] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [onlineStores, setOnlineStores] = useState<any[]>([]);
+  const [onlineStoresLoading, setOnlineStoresLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'licenses' | 'stores' | 'withdrawals' | 'resellers'>('licenses');
+  const [activeTab, setActiveTab] = useState<'licenses' | 'stores' | 'withdrawals' | 'resellers' | 'online_stores'>('licenses');
 
   // Withdrawal state
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -52,6 +54,11 @@ export default function AdminDashboard() {
   const [createError, setCreateError] = useState('');
   const [copiedKey, setCopiedKey] = useState(false);
 
+  // App Settings state
+  const [appSettingsForm, setAppSettingsForm] = useState({ apk_url: '', app_version: '', app_size: '', last_updated: '' });
+  const [appSettingsLoading, setAppSettingsLoading] = useState(false);
+  const [appSettingsMessage, setAppSettingsMessage] = useState('');
+
   const fetchWAStatus = async () => {
     try {
       const res = await fetch('https://serv.kiosly.web.id/status');
@@ -84,8 +91,38 @@ export default function AdminDashboard() {
       setIsAuthenticated(true);
       fetchDashboardData();
       fetchWAStatus();
+      fetchAppSettings();
     }
   }, []);
+
+  const fetchAppSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/app');
+      const data = await res.json();
+      if (res.ok && data.settings) setAppSettingsForm(data.settings);
+    } catch {}
+  };
+
+  const handleUpdateAppSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppSettingsLoading(true);
+    setAppSettingsMessage('');
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/settings/app', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify(appSettingsForm),
+      });
+      if (res.ok) setAppSettingsMessage('Pengaturan berhasil disimpan!');
+      else setAppSettingsMessage('Gagal menyimpan pengaturan');
+    } catch {
+      setAppSettingsMessage('Koneksi gagal');
+    } finally {
+      setAppSettingsLoading(false);
+      setTimeout(() => setAppSettingsMessage(''), 3000);
+    }
+  };
 
   // Poll WA status every 5 seconds when authenticated
   useEffect(() => {
@@ -145,6 +182,35 @@ export default function AdminDashboard() {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchOnlineStores = async () => {
+    setOnlineStoresLoading(true);
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/sellers', { headers: { Authorization: token } });
+      const data = await res.json();
+      if (res.ok) setOnlineStores(data.sellers || []);
+    } catch {}
+    finally { setOnlineStoresLoading(false); }
+  };
+
+  const handleToggleOnlineStore = async (id: string, currentStatus: boolean) => {
+    const token = localStorage.getItem('cashiro_admin_token') || '';
+    try {
+      const res = await fetch('/api/sellers/admin', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: token },
+        body: JSON.stringify({ id, is_active: !currentStatus }),
+      });
+      if (res.ok) fetchOnlineStores();
+      else {
+        const data = await res.json();
+        alert(data.error || 'Gagal mengubah status');
+      }
+    } catch {
+      alert('Gagal terhubung ke server');
     }
   };
 
@@ -556,6 +622,84 @@ export default function AdminDashboard() {
               )}
             </div>
 
+            {/* App Settings Form */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl" />
+              
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Settings className="text-blue-500" />
+                Pengaturan Download
+              </h2>
+              <p className="text-sm text-slate-400 mb-6">
+                Ubah tautan APK, versi, dan info aplikasi untuk halaman download publik.
+              </p>
+
+              {appSettingsMessage && (
+                <div className={`border text-sm rounded-xl p-3 mb-4 text-center ${
+                  appSettingsMessage.includes('berhasil') ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                }`}>
+                  {appSettingsMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleUpdateAppSettings} className="space-y-4">
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Link APK (Google Drive/Lainnya)</label>
+                  <input
+                    type="text"
+                    required
+                    value={appSettingsForm.apk_url}
+                    onChange={e => setAppSettingsForm(p => ({ ...p, apk_url: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Versi</label>
+                    <input
+                      type="text"
+                      required
+                      value={appSettingsForm.app_version}
+                      onChange={e => setAppSettingsForm(p => ({ ...p, app_version: e.target.value }))}
+                      placeholder="1.0.0"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Ukuran</label>
+                    <input
+                      type="text"
+                      required
+                      value={appSettingsForm.app_size}
+                      onChange={e => setAppSettingsForm(p => ({ ...p, app_size: e.target.value }))}
+                      placeholder="128 MB"
+                      className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-1">Tanggal Update</label>
+                  <input
+                    type="text"
+                    required
+                    value={appSettingsForm.last_updated}
+                    onChange={e => setAppSettingsForm(p => ({ ...p, last_updated: e.target.value }))}
+                    placeholder="30 Mei 2025"
+                    className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={appSettingsLoading}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm cursor-pointer"
+                >
+                  {appSettingsLoading ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                </button>
+              </form>
+            </div>
+
             {/* Quick Stats */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl grid grid-cols-2 gap-4">
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-center">
@@ -596,6 +740,16 @@ export default function AdminDashboard() {
                   Daftar Toko
                 </button>
                 <button
+                  onClick={() => { setActiveTab('online_stores'); fetchOnlineStores(); }}
+                  className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'online_stores'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Store size={14} /> Toko Online
+                </button>
+                <button
                   onClick={() => { setActiveTab('withdrawals'); fetchWithdrawals('pending'); }}
                   className={`flex-1 md:flex-none px-5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     activeTab === 'withdrawals'
@@ -632,6 +786,85 @@ export default function AdminDashboard() {
 
             {/* List */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-xl overflow-hidden min-h-[450px]">
+
+              {/* Online Stores Tab */}
+              {activeTab === 'online_stores' && (
+                <div>
+                  {onlineStoresLoading ? (
+                    <div className="flex items-center justify-center p-16 text-slate-400">
+                      <RefreshCw className="animate-spin mr-2" size={18} /> Memuat data...
+                    </div>
+                  ) : onlineStores.length === 0 ? (
+                    <div className="text-center p-16 text-slate-500 text-sm">
+                      Belum ada toko online yang terdaftar
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-800 bg-slate-950 text-slate-400 text-xs font-semibold uppercase">
+                            <th className="p-4 pl-6">Nama Toko</th>
+                            <th className="p-4">Link Toko (Cek Produk)</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 pr-6">Aksi Moderasi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {onlineStores.filter((s: any) => 
+                            (s.stores?.store_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            s.slug.toLowerCase().includes(searchQuery.toLowerCase())
+                          ).map((s: any) => (
+                            <tr key={s.id} className="hover:bg-slate-800/30 transition-all">
+                              <td className="p-4 pl-6">
+                                <div className="font-bold text-white">{s.stores?.store_name || '-'}</div>
+                                <div className="text-slate-400 text-[11px]">{new Date(s.created_at).toLocaleDateString('id-ID')}</div>
+                              </td>
+                              <td className="p-4">
+                                <a 
+                                  href={`/store/${s.slug}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1.5"
+                                  title="Klik untuk melihat produk yang dijual toko ini"
+                                >
+                                  /store/{s.slug} <Link2 size={12} />
+                                </a>
+                              </td>
+                              <td className="p-4">
+                                {s.is_active ? (
+                                  <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-400 px-3 py-1 rounded-full text-xs font-semibold border border-green-500/20">
+                                    <CheckCircle size={12} /> Aktif
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-400 px-3 py-1 rounded-full text-xs font-semibold border border-red-500/20">
+                                    <Ban size={12} /> Diblokir
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4 pr-6">
+                                <button
+                                  onClick={() => {
+                                    if(confirm(`Apakah Anda yakin ingin ${s.is_active ? 'memblokir' : 'memulihkan'} etalase toko ini?`)) {
+                                      handleToggleOnlineStore(s.id, s.is_active);
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                    s.is_active 
+                                      ? 'bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30' 
+                                      : 'bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-500/30'
+                                  }`}
+                                >
+                                  {s.is_active ? <><Ban size={12}/> Blokir</> : <><CheckCircle size={12}/> Pulihkan</>}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Withdrawal Tab */}
               {activeTab === 'withdrawals' && (

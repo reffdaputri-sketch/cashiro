@@ -96,6 +96,26 @@ class ReportService {
     ''', [startStr, endStr]);
   }
 
+  Future<List<Map<String, dynamic>>> getBestSellingCategories(DateTime start, DateTime end) async {
+    final db = await _db.database;
+    final startStr = start.toIso8601String();
+    final endStr = end.toIso8601String();
+
+    return await db.rawQuery('''
+      SELECT 
+        COALESCE(p.category, 'Tanpa Kategori') as name,
+        SUM(ti.quantity - COALESCE(ti.returned_qty, 0)) as total_qty,
+        SUM(ti.price_at_sale * (ti.quantity - COALESCE(ti.returned_qty, 0))) as total_sales
+      FROM transaction_items ti
+      JOIN transactions t ON t.id = ti.transaction_id
+      JOIN products p ON p.id = ti.product_id
+      WHERE t.created_at BETWEEN ? AND ?
+      GROUP BY p.category
+      ORDER BY total_qty DESC
+      LIMIT 10
+    ''', [startStr, endStr]);
+  }
+
   Future<List<Map<String, dynamic>>> getDailyProfitLoss(DateTime start, DateTime end) async {
     final db = await _db.database;
     final startStr = start.toIso8601String();
@@ -192,12 +212,18 @@ class ReportService {
 
     return await db.rawQuery('''
       SELECT 
-        payment_method,
-        COUNT(id) as transaction_count,
-        SUM(total_amount) as total_amount
-      FROM transactions
-      WHERE created_at BETWEEN ? AND ?
-      GROUP BY payment_method
+        t.payment_method,
+        COUNT(t.id) as transaction_count,
+        SUM(
+          t.total_amount - COALESCE(
+            (SELECT SUM(COALESCE(ti.returned_qty, 0) * ti.price_at_sale) 
+             FROM transaction_items ti 
+             WHERE ti.transaction_id = t.id), 0
+          )
+        ) as total_amount
+      FROM transactions t
+      WHERE t.created_at BETWEEN ? AND ?
+      GROUP BY t.payment_method
       ORDER BY total_amount DESC
     ''', [startStr, endStr]);
   }

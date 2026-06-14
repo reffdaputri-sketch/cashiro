@@ -4,6 +4,7 @@ import 'package:cashiro/screens/master_data_screen.dart';
 import 'package:cashiro/screens/report_screen.dart';
 import 'package:cashiro/screens/dashboard_screen.dart';
 import 'package:cashiro/screens/profile_screen.dart';
+import 'package:cashiro/screens/kitchen_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:cashiro/providers/auth_provider.dart';
 
@@ -29,7 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<_NavTab> _allTabs = [
     _NavTab(screen: const DashboardScreen(), icon: Icons.dashboard_outlined, label: 'Dashboard'), // Owner Only
     _NavTab(screen: const MasterDataScreen(), icon: Icons.inventory_2_outlined, label: 'Produk', permission: 'Manajemen Produk'),
-    _NavTab(screen: const POSScreen(), icon: Icons.credit_card_outlined, label: 'Kasir'), // Always
+    _NavTab(screen: const POSScreen(), icon: Icons.credit_card_outlined, label: 'Kasir', permission: 'Akses Kasir'),
+    _NavTab(screen: const KitchenScreen(), icon: Icons.soup_kitchen_outlined, label: 'Dapur', permission: 'Akses Dapur'),
     _NavTab(screen: const ReportScreen(), icon: Icons.bar_chart_outlined, label: 'Laporan', permission: 'Laporan Penjualan'),
     _NavTab(screen: const ProfileScreen(), icon: Icons.store_outlined, label: 'Toko'), // Owner Only
   ];
@@ -40,10 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Filter tabs based on role and permissions
     final List<_NavTab> activeTabs = _allTabs.where((tab) {
+      if (!auth.isFnbMode && tab.label == 'Dapur') return false;
       if (auth.isOwner) return true;
       if (tab.label == 'Dashboard') return auth.hasPermission('Akses Dashboard');
       if (tab.label == 'Toko') return auth.hasPermission('Akses Toko (Profil)');
-      if (tab.permission == null) return true; // Always visible (e.g. Kasir)
+      if (tab.label == 'Kasir') {
+        if (auth.hasPermission('Akses Kasir')) return true;
+        // Default Kasir to true if they don't have Akses Dapur (backward compat)
+        if (!auth.hasPermission('Akses Dapur')) return true;
+        return false;
+      }
+      if (tab.permission == null) return true;
       return auth.hasPermission(tab.permission!);
     }).toList();
 

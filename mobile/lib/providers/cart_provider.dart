@@ -21,6 +21,10 @@ class CartProvider with ChangeNotifier {
   double _manualOtherFee = -1.0;
   bool _manualOtherFeeIsPercent = false;
 
+  String _orderType = 'Dine In';
+  String? _tableNumber;
+  int? _draftTransactionId;
+
   CartProvider() {
     loadTaxSettings();
   }
@@ -35,6 +39,9 @@ class CartProvider with ChangeNotifier {
   bool get manualTaxIsPercent => _manualTaxIsPercent;
   double get manualOtherFee => _manualOtherFee;
   bool get manualOtherFeeIsPercent => _manualOtherFeeIsPercent;
+  String get orderType => _orderType;
+  String? get tableNumber => _tableNumber;
+  int? get draftTransactionId => _draftTransactionId;
 
   double get subtotal => _items.fold(0.0, (sum, item) => sum + item.total);
 
@@ -97,6 +104,24 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setOrderType(String type) {
+    _orderType = type;
+    notifyListeners();
+  }
+
+  void setTableNumber(String? table) {
+    _tableNumber = table;
+    notifyListeners();
+  }
+
+  void setItemNotes(CartItem item, String notes) {
+    final index = _items.indexOf(item);
+    if (index >= 0) {
+      _items[index].notes = notes;
+      notifyListeners();
+    }
+  }
+
   void addToCart(Product product, {ProductVariation? variation}) {
     final index = _items.indexWhere((item) =>
       item.product.id == product.id && item.variation?.id == variation?.id
@@ -154,6 +179,9 @@ class CartProvider with ChangeNotifier {
     _manualTaxIsPercent = false;
     _manualOtherFee = -1.0;
     _manualOtherFeeIsPercent = false;
+    _orderType = 'Dine In';
+    _tableNumber = null;
+    _draftTransactionId = null;
     notifyListeners();
   }
 
@@ -165,7 +193,7 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  Future<int?> checkout(double paidAmount, {int? customerId, String paymentMethod = 'Tunai', int? shiftId, String? cashierName, double? taxPercentage}) async {
+  Future<int?> checkout(double paidAmount, {int? customerId, String paymentMethod = 'Tunai', int? shiftId, String? cashierName, double? taxPercentage, bool sendToKitchen = false}) async {
     if (_items.isEmpty) return null;
 
     final db = await _db.database;
@@ -174,18 +202,49 @@ class CartProvider with ChangeNotifier {
 
     return await db.transaction((txn) async {
       final total = totalAmount;
-      final transactionId = await txn.insert('transactions', {
-        'total_amount': total,
-        'paid_amount': paidAmount,
-        'created_at': DateTime.now().toIso8601String(),
-        'customer_id': customerId,
-        'payment_method': paymentMethod,
-        'shift_id': shiftId,
-        'tax_amount': tax,
-        'service_charge_amount': svc,
-        'cashier_name': cashierName,
-        'tax_percentage': taxPercentage,
-      });
+      int transactionId;
+
+      if (_draftTransactionId != null) {
+        transactionId = _draftTransactionId!;
+        final updateMap = <String, dynamic>{
+          'total_amount': total,
+          'paid_amount': paidAmount,
+          'customer_id': customerId,
+          'payment_method': paymentMethod,
+          'shift_id': shiftId,
+          'status': 'Selesai',
+          'tax_amount': tax,
+          'service_charge_amount': svc,
+          'cashier_name': cashierName,
+          'tax_percentage': taxPercentage,
+          'order_type': _orderType,
+          'table_number': _tableNumber,
+          'is_synced': 0
+        };
+        if (sendToKitchen) {
+          updateMap['kitchen_status'] = 'Pending';
+        }
+        await txn.update('transactions', updateMap, where: 'id = ?', whereArgs: [transactionId]);
+        
+        await txn.delete('transaction_items', where: 'transaction_id = ?', whereArgs: [transactionId]);
+      } else {
+        transactionId = await txn.insert('transactions', {
+          'total_amount': total,
+          'paid_amount': paidAmount,
+          'created_at': DateTime.now().toIso8601String(),
+          'customer_id': customerId,
+          'payment_method': paymentMethod,
+          'shift_id': shiftId,
+          'status': 'Selesai',
+          'tax_amount': tax,
+          'service_charge_amount': svc,
+          'cashier_name': cashierName,
+          'tax_percentage': taxPercentage,
+          'order_type': _orderType,
+          'table_number': _tableNumber,
+          'kitchen_status': sendToKitchen ? 'Pending' : '',
+        });
+      }
 
       for (var item in _items) {
         await txn.insert('transaction_items', {
@@ -194,6 +253,8 @@ class CartProvider with ChangeNotifier {
           'quantity': item.quantity,
           'price_at_sale': item.price - item.discount,
           'cost_at_sale': item.product.costPrice,
+          'notes': item.notes,
+          'variation_id': item.variation?.id,
         });
         
         // Update stock and mark as unsynced so changes are uploaded to cloud
@@ -229,5 +290,104 @@ class CartProvider with ChangeNotifier {
       DatabaseService.hasUnsyncedChanges = true;
       return transactionId;
     });
+  }
+
+  Future<int?> saveDraftOrder({int? customerId, int? shiftId, String? cashierName, double? taxPercentage}) async {
+    if (_items.isEmpty) return null;
+
+    final db = await _db.database;
+    final tax = taxAmount;
+    final svc = serviceChargeAmount;
+
+    return await db.transaction((txn) async {
+      final total = totalAmount;
+      int transactionId;
+
+      if (_draftTransactionId != null) {
+        transactionId = _draftTransactionId!;
+        await txn.update('transactions', {
+          'total_amount': total,
+          'customer_id': customerId,
+          'shift_id': shiftId,
+          'tax_amount': tax,
+          'service_charge_amount': svc,
+          'cashier_name': cashierName,
+          'tax_percentage': taxPercentage,
+          'order_type': _orderType,
+          'table_number': _tableNumber,
+          'kitchen_status': 'Pending',
+          'is_synced': 0
+        }, where: 'id = ?', whereArgs: [transactionId]);
+        
+        await txn.delete('transaction_items', where: 'transaction_id = ?', whereArgs: [transactionId]);
+      } else {
+        transactionId = await txn.insert('transactions', {
+          'total_amount': total,
+          'paid_amount': 0.0,
+          'created_at': DateTime.now().toIso8601String(),
+          'customer_id': customerId,
+          'status': 'Draft',
+          'shift_id': shiftId,
+          'tax_amount': tax,
+          'service_charge_amount': svc,
+          'cashier_name': cashierName,
+          'tax_percentage': taxPercentage,
+          'order_type': _orderType,
+          'table_number': _tableNumber,
+          'kitchen_status': 'Pending',
+        });
+      }
+
+      for (var item in _items) {
+        await txn.insert('transaction_items', {
+          'transaction_id': transactionId,
+          'product_id': item.product.id,
+          'quantity': item.quantity,
+          'price_at_sale': item.price - item.discount,
+          'cost_at_sale': item.product.costPrice,
+          'notes': item.notes,
+          'variation_id': item.variation?.id,
+        });
+      }
+
+      clearCart();
+      DatabaseService.hasUnsyncedChanges = true;
+      return transactionId;
+    });
+  }
+
+  Future<void> loadDraftOrder(int transactionId, List<Product> allProducts) async {
+    final db = await _db.database;
+    final trList = await db.query('transactions', where: 'id = ?', whereArgs: [transactionId]);
+    if (trList.isEmpty) return;
+    final tr = trList.first;
+    
+    _items.clear();
+    _draftTransactionId = transactionId;
+    _orderType = tr['order_type'] as String? ?? 'Dine In';
+    _tableNumber = tr['table_number'] as String?;
+    
+    final itemsList = await db.query('transaction_items', where: 'transaction_id = ?', whereArgs: [transactionId]);
+    for (var row in itemsList) {
+       final pId = row['product_id'] as int;
+       final vId = row['variation_id'] as int?;
+       
+       final product = allProducts.firstWhere((p) => p.id == pId, orElse: () => Product(id: -1, name: 'Unknown', price: 0, stock: 0, category: '', createdAt: DateTime.now()));
+       if (product.id == -1) continue;
+       
+       ProductVariation? variation;
+       if (vId != null) {
+           variation = product.variations.cast<ProductVariation?>().firstWhere((v) => v?.id == vId, orElse: () => null);
+       }
+       
+       final cartItem = CartItem(
+          product: product,
+          variation: variation,
+          quantity: row['quantity'] as int,
+          notes: row['notes'] as String?,
+       );
+       _items.add(cartItem);
+    }
+    notifyListeners();
   }
 }

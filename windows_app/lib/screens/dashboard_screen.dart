@@ -24,7 +24,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final Color primaryGreen = const Color(0xFF0F5A33);
+
   final Color bgLight = const Color(0xFFF4F9F6);
   final DatabaseService _db = DatabaseService();
   final ReportService _reportService = ReportService();
@@ -113,19 +113,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final userName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Andi';
     final storeName = auth.storeInfo['storeName'] ?? 'Toko Sejahtera';
     final storePhone = auth.storeInfo['phone'] ?? '-';
+    final Color primaryGreen = Theme.of(context).primaryColor;
     
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 800;
     
-    final hour = DateTime.now().hour;
-    String greeting = 'Selamat pagi';
-    if (hour >= 11 && hour < 15) {
-      greeting = 'Selamat siang';
-    } else if (hour >= 15 && hour < 18) {
-      greeting = 'Selamat sore';
-    } else if (hour >= 18 || hour < 3) {
-      greeting = 'Selamat malam';
-    }
+    String greeting = 'Welcome';
 
     return Scaffold(
       backgroundColor: bgLight,
@@ -278,7 +271,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
 
-            const SizedBox(height: 70), // Spacer for overlapping cards
+            const SizedBox(height: 20), // Spacer for overlapping cards + 8px gap
+
+            // MENUS
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: isDesktop ? 6 : 3,
+                childAspectRatio: isDesktop ? 1.0 : 1.1,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                children: [
+                  _buildMenuBtn(context, 'Produk', Icons.inventory_2_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen()))),
+                  _buildMenuBtn(context, 'Toko Online', Icons.shopping_bag_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen()))),
+                  _buildMenuBtn(context, 'Laba Rugi', Icons.bar_chart, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0)))),
+                  _buildMenuBtn(context, 'Terlaris', Icons.trending_up, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1)))),
+                  _buildMenuBtn(context, 'Stok Barang', Icons.warehouse_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen()))),
+                  _buildMenuBtn(context, 'Riwayat', Icons.history, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()))),
+                  _buildMenuBtn(context, 'Arus Kas', Icons.account_balance_wallet_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen()))),
+                  _buildMenuBtn(context, 'Staf', Icons.people_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen()))),
+                  _buildMenuBtn(context, 'Referral', Icons.group_add_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen()))),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             // CHART SECTION
             Container(
@@ -405,31 +424,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 20),
 
-            // MENUS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: isDesktop ? 6 : 3,
-                childAspectRatio: isDesktop ? 1.8 : 2.2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                children: [
-                  _buildMenuBtn(context, 'Produk', Icons.inventory_2_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MasterDataScreen()))),
-                  _buildMenuBtn(context, 'Toko Online', Icons.shopping_bag_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OnlineStoreScreen()))),
-                  _buildMenuBtn(context, 'Laba Rugi', Icons.bar_chart, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 0)))),
-                  _buildMenuBtn(context, 'Terlaris', Icons.trending_up, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen(initialTabIndex: 1)))),
-                  _buildMenuBtn(context, 'Stok Barang', Icons.warehouse_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen()))),
-                  _buildMenuBtn(context, 'Riwayat', Icons.history, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen()))),
-                  _buildMenuBtn(context, 'Arus Kas', Icons.account_balance_wallet_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashFlowScreen()))),
-                  _buildMenuBtn(context, 'Staf', Icons.people_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListScreen()))),
-                  _buildMenuBtn(context, 'Referral', Icons.group_add_outlined, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralManagementScreen()))),
-                ],
-              ),
-            ),
 
-            const SizedBox(height: 20),
 
             // BOTTOM BANNER (Moved up)
             Container(
@@ -557,18 +552,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           border: Border.all(color: Colors.grey.shade100),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), blurRadius: 4)],
         ),
-        child: Row(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.green.shade700, size: isDesktop ? 28 : 20),
-            SizedBox(width: isDesktop ? 12 : 8),
+            Container(
+              padding: EdgeInsets.all(isDesktop ? 12 : 10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Theme.of(context).primaryColor, size: isDesktop ? 32 : 28),
+            ),
+            SizedBox(height: isDesktop ? 12 : 8),
             Text(
               title, 
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: isDesktop ? 16 : 12, 
+                fontSize: isDesktop ? 15 : 13, 
                 fontWeight: FontWeight.bold, 
                 color: Colors.black87
-              )
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -584,8 +589,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Container(
             padding: EdgeInsets.all(isDesktop ? 12 : 8),
-            decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            child: Icon(Icons.receipt_long, color: Colors.green, size: isDesktop ? 24 : 16),
+            decoration: BoxDecoration(color: Theme.of(context).primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: Icon(Icons.receipt_long, color: Theme.of(context).primaryColor, size: isDesktop ? 24 : 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -605,8 +610,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text('Selesai', style: TextStyle(color: Colors.green, fontSize: isDesktop ? 11 : 8, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(color: Theme.of(context).primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                child: Text('Selesai', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: isDesktop ? 11 : 8, fontWeight: FontWeight.bold)),
               )
             ],
           )
@@ -661,9 +666,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const Text('Transaksi Terbaru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               InkWell(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoryScreen())),
-                child: const Padding(
-                  padding: EdgeInsets.all(4.0),
-                  child: Text('Lihat semua', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Text('Lihat semua', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -721,9 +726,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const Text('Stok Menipis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
               InkWell(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockReportScreen())),
-                child: const Padding(
-                  padding: EdgeInsets.all(4.0),
-                  child: Text('Lihat semua', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Text('Lihat semua', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],

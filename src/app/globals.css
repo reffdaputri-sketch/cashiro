@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* Kiosly Brand Colors - Premium Feel */
-  --primary: #0F52BA;
-  /* Sapphire Blue - Trustworthy & Professional */
+  /* Cashiro Brand Colors - Premium Feel */
+  --primary: #008C15;
+  /* Gojek Green Darker - Fresh & Growth */
   --primary-foreground: #ffffff;
 
   --secondary: #F0F4F8;
@@ -50,8 +50,8 @@
     --foreground: #f8fafc;
     /* Slate 50 */
 
-    --primary: #3b82f6;
-    /* Lighter Blue for Dark Mode */
+    --primary: #00C21B;
+    /* Lighter Gojek Green for Dark Mode */
     --primary-foreground: #ffffff;
 
     --secondary: #1e293b;

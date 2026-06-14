@@ -36,7 +36,7 @@ export const Hero = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Link href="/download">
+                        <Link href="/beli">
                             <Button size="lg" className="w-full sm:w-auto gap-2">
                                 Daftar Sekarang <ArrowRight size={20} />
                             </Button>

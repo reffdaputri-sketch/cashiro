@@ -6,8 +6,9 @@ class CartItem {
   final ProductVariation? variation;
   int quantity;
   double discount;
+  String? notes;
 
-  CartItem({required this.product, this.variation, this.quantity = 1, this.discount = 0.0});
+  CartItem({required this.product, this.variation, this.quantity = 1, this.discount = 0.0, this.notes});
 
   double get price => variation?.price ?? product.price;
 

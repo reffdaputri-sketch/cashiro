@@ -10,11 +10,20 @@ import 'package:cashiro/models/product.dart';
 import 'package:cashiro/models/product_variation.dart';
 import 'package:cashiro/models/cart_item.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:io';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:cashiro/screens/scanner_screen.dart';
+import 'package:cashiro/screens/active_orders_screen.dart';
+import 'package:cashiro/screens/kitchen_screen.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:cashiro/services/database_service.dart';
+import 'package:cashiro/services/sync_service.dart';
+import 'package:cashiro/services/api_service.dart';
+import 'package:cashiro/screens/online_store_screen.dart';
 
 class POSScreen extends StatefulWidget {
   const POSScreen({super.key});
@@ -29,16 +38,234 @@ class _POSScreenState extends State<POSScreen> {
   bool _isSearching = false;
   bool _isRetailMode = false;
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+
+  String _barcodeBuffer = '';
+  DateTime? _lastScanTime;
+  
+  Timer? _readyPollTimer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  Set<int> _previousReadyIds = {};
+  Set<int> _previousOnlineOrderIds = {};
+  String? _storeSlug;
+  final DatabaseService _db = DatabaseService();
 
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_onKeyEvent);
     _loadRetailModePref();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final cashierName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Owner';
       Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
       Provider.of<ProductProvider>(context, listen: false).fetchProducts();
-      Provider.of<ShiftProvider>(context, listen: false).checkActiveShift();
+      Provider.of<ShiftProvider>(context, listen: false).checkActiveShift(cashierName);
     });
+    
+    // Polling for Ready Orders
+    _pollReadyOrders(firstLoad: true);
+    _readyPollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _pollReadyOrders(firstLoad: false);
+    });
+  }
+
+  void _showTableSelection(BuildContext context, CartProvider cart) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final totalTablesStr = auth.storeInfo['totalTables'];
+    final totalTables = int.tryParse(totalTablesStr ?? '0') ?? 0;
+
+    if (totalTables == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jumlah meja belum diatur di Pengaturan Toko.')));
+      return;
+    }
+
+    final db = await _db.database;
+    final draftTxns = await db.query('transactions', where: "status = 'Draft' AND table_number IS NOT NULL AND table_number != ''");
+    final occupiedTables = draftTxns.map((t) => t['table_number'].toString()).toSet();
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              const Text('Pilih Meja', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: totalTables,
+                  itemBuilder: (ctx, index) {
+                    final tableStr = (index + 1).toString();
+                    final isOccupied = occupiedTables.contains(tableStr) && cart.tableNumber != tableStr;
+
+                    return InkWell(
+                      onTap: isOccupied ? null : () {
+                        cart.setTableNumber(cart.tableNumber == tableStr ? null : tableStr);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isOccupied ? Colors.grey[300] : (cart.tableNumber == tableStr ? Colors.blue : Colors.white),
+                          border: Border.all(color: isOccupied ? Colors.grey : Colors.blue),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          tableStr,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isOccupied ? Colors.grey[600] : (cart.tableNumber == tableStr ? Colors.white : Colors.blue),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _readyPollTimer?.cancel();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pollReadyOrders({required bool firstLoad}) async {
+    try {
+      if (!firstLoad) {
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final storeId = auth.storeInfo['storeId'];
+        final licenseKey = auth.storeInfo['licenseKey'];
+        if (storeId != null && licenseKey != null && storeId != 'DEMO-STORE-ID') {
+          await SyncService().downloadAllCloudData(storeId, licenseKey);
+          
+          // Poll Online Store Orders
+          if (_storeSlug == null) {
+            try {
+              final result = await ApiService().activateSeller(storeId);
+              _storeSlug = result['slug'];
+            } catch (_) {}
+          }
+          
+          if (_storeSlug != null) {
+            try {
+              final orders = await ApiService().getSellerOrders(_storeSlug!);
+              final pendingOrders = orders.where((o) => o['status'] == 'pending').map((o) => o['id'] as int).toSet();
+              
+              final newOnlineIds = pendingOrders.difference(_previousOnlineOrderIds);
+              if (newOnlineIds.isNotEmpty && mounted) {
+                 _audioPlayer.play(AssetSource('sounds/notification.wav'));
+                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                   content: Text('Pesanan Online Baru! Ada ${newOnlineIds.length} pesanan baru dari Toko Online 🔔', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                   backgroundColor: Colors.blue[700],
+                   duration: const Duration(seconds: 5),
+                   action: SnackBarAction(
+                     label: 'LIHAT',
+                     textColor: Colors.white,
+                     onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (ctx) => const OnlineStoreScreen()));
+                     },
+                   ),
+                 ));
+              }
+              _previousOnlineOrderIds = pendingOrders;
+            } catch (_) {}
+          }
+        }
+      }
+
+      final db = await _db.database;
+      final results = await db.query(
+        'transactions',
+        columns: ['id'],
+        where: 'kitchen_status = ?',
+        whereArgs: ['Ready'],
+      );
+      
+      Set<int> currentIds = results.map((e) => e['id'] as int).toSet();
+      
+      if (!firstLoad) {
+        final newIds = currentIds.difference(_previousReadyIds);
+        if (newIds.isNotEmpty && mounted) {
+          _audioPlayer.play(AssetSource('sounds/ready.wav'));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Pesanan Selesai! Ada ${newIds.length} pesanan siap dijemput 🚀', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            backgroundColor: Colors.green[700],
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'LIHAT',
+              textColor: Colors.white,
+              onPressed: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ActiveOrdersScreen()));
+              },
+            ),
+          ));
+        }
+      }
+      _previousReadyIds = currentIds;
+    } catch (e) {
+      debugPrint('Error polling ready orders: $e');
+    }
+  }
+
+  bool _onKeyEvent(KeyEvent event) {
+    if (!mounted) return false;
+    
+    // Abaikan jika sedang mengetik di kolom pencarian
+    if (_searchFocusNode.hasFocus) {
+      return false;
+    }
+
+    if (event is KeyDownEvent) {
+      if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+        if (_barcodeBuffer.isNotEmpty) {
+          final scannedBarcode = _barcodeBuffer;
+          _barcodeBuffer = '';
+          _handleScannerInput(scannedBarcode);
+          return true;
+        }
+      } else {
+        String? char = event.character;
+        if (char == null || char.isEmpty) {
+          if (event.logicalKey.keyLabel.length == 1) {
+             char = event.logicalKey.keyLabel;
+          }
+        }
+        
+        if (char != null && char.isNotEmpty) {
+          final now = DateTime.now();
+          // Jika jeda antar karakter lebih dari 500ms, dianggap ketikan manusia biasa, reset buffer
+          if (_lastScanTime != null && now.difference(_lastScanTime!).inMilliseconds > 500) {
+            _barcodeBuffer = '';
+          }
+          if (char.trim().isNotEmpty || char == ' ') {
+            _barcodeBuffer += char;
+          }
+          _lastScanTime = now;
+        }
+      }
+    }
+    return false;
   }
 
   Future<void> _loadRetailModePref() async {
@@ -110,6 +337,37 @@ class _POSScreenState extends State<POSScreen> {
     );
   }
 
+  void _handleScannerInput(String result) {
+    if (result.isEmpty) return;
+    final provider = Provider.of<ProductProvider>(context, listen: false);
+    try {
+      // 1. Try finding by Product Code
+      try {
+        final product = provider.products.firstWhere((p) => p.code == result);
+        if (product.variations.isNotEmpty) {
+          _showVariationDialog(product);
+        } else {
+          _addToCart(product);
+        }
+        return;
+      } catch (_) {}
+
+      // 2. Try finding by Variation SKU
+      for (var product in provider.products) {
+        try {
+          final variation = product.variations.firstWhere((v) => v.sku == result);
+          _addToCart(product, variation: variation);
+          return;
+        } catch (_) {}
+      }
+      
+      _showSnackBar('Produk tidak ditemukan');
+
+    } catch (e) {
+      _showSnackBar('Terjadi kesalahan');
+    }
+  }
+
   Future<void> _scanBarcode() async {
     final result = await Navigator.push(
       context,
@@ -117,33 +375,7 @@ class _POSScreenState extends State<POSScreen> {
     );
 
     if (result != null && result is String) {
-      final provider = Provider.of<ProductProvider>(context, listen: false);
-      try {
-        // 1. Try finding by Product Code
-        try {
-          final product = provider.products.firstWhere((p) => p.code == result);
-          if (product.variations.isNotEmpty) {
-            _showVariationDialog(product);
-          } else {
-            _addToCart(product);
-          }
-          return;
-        } catch (_) {}
-
-        // 2. Try finding by Variation SKU
-        for (var product in provider.products) {
-          try {
-            final variation = product.variations.firstWhere((v) => v.sku == result);
-            _addToCart(product, variation: variation);
-            return;
-          } catch (_) {}
-        }
-        
-        _showSnackBar('Produk tidak ditemukan');
-
-      } catch (e) {
-        _showSnackBar('Terjadi kesalahan');
-      }
+      _handleScannerInput(result);
     }
   }
 
@@ -200,7 +432,9 @@ class _POSScreenState extends State<POSScreen> {
                         );
                         return;
                       }
-                      await Provider.of<ShiftProvider>(context, listen: false).openShift(startCash);
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final cashierName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Owner';
+                      await Provider.of<ShiftProvider>(context, listen: false).openShift(startCash, cashierName);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Shift berhasil dibuka!'), backgroundColor: Colors.green),
                       );
@@ -222,6 +456,7 @@ class _POSScreenState extends State<POSScreen> {
     final expectedCash = summary['expected_cash']!;
     final startCash = summary['start_cash']!;
     final cashSales = summary['cash_sales']!;
+    final totalExpenses = summary['total_expenses']!;
 
     final actualCashController = TextEditingController();
     final currencyFormatter =
@@ -252,7 +487,15 @@ class _POSScreenState extends State<POSScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Penjualan Tunai:'),
-                  Text(currencyFormatter.format(cashSales)),
+                  Text('+ ${currencyFormatter.format(cashSales)}', style: const TextStyle(color: Colors.green)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Pengeluaran:'),
+                  Text('- ${currencyFormatter.format(totalExpenses)}', style: const TextStyle(color: Colors.red)),
                 ],
               ),
               const Divider(),
@@ -389,8 +632,17 @@ class _POSScreenState extends State<POSScreen> {
           ),
           child: TextField(
             controller: _searchController,
+            focusNode: _searchFocusNode,
             enabled: shiftProvider.isShiftOpen,
             onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+            onSubmitted: (val) {
+              if (val.isNotEmpty) {
+                _handleScannerInput(val);
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+                _searchFocusNode.requestFocus(); // Keep focus for next scan
+              }
+            },
             style: const TextStyle(fontSize: 14),
             decoration: InputDecoration(
               hintText: shiftProvider.isShiftOpen ? 'Cari produk atau scan barcode...' : 'Buka shift untuk bertransaksi',
@@ -411,6 +663,22 @@ class _POSScreenState extends State<POSScreen> {
                   tooltip: _isRetailMode ? 'Mode Grid' : 'Mode Retail',
                   onPressed: _toggleRetailMode,
                 ),
+                if (Provider.of<AuthProvider>(context).isFnbMode) ...[
+                  IconButton(
+                    icon: const Icon(Icons.soup_kitchen, color: Colors.white),
+                    tooltip: 'Layar Dapur',
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const KitchenScreen()));
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.table_restaurant, color: Colors.white),
+                    tooltip: 'Pesanan Aktif',
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const ActiveOrdersScreen()));
+                    },
+                  ),
+                ],
                 IconButton(
                   icon: const Icon(Icons.add_box, color: Colors.white),
                   tooltip: 'Barang Manual',
@@ -474,6 +742,55 @@ class _POSScreenState extends State<POSScreen> {
                                 ),
                               );
                             },
+                          ),
+                        );
+                      },
+                    );
+
+                    final orderInfoBar = Consumer<CartProvider>(
+                      builder: (context, cart, _) {
+                        if (!Provider.of<AuthProvider>(context).isFnbMode) return const SizedBox.shrink();
+                        return Container(
+                          color: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: DropdownButtonFormField<String>(
+                                  value: cart.orderType,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Tipe Pesanan',
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: ['Dine In', 'Take Away', 'Delivery'].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) cart.setOrderType(val);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 1,
+                                child: InkWell(
+                                  onTap: () => _showTableSelection(context, cart),
+                                  child: Container(
+                                    height: 48,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      cart.tableNumber != null && cart.tableNumber!.isNotEmpty ? 'Meja ${cart.tableNumber}' : 'Pilih Meja', 
+                                      style: TextStyle(color: cart.tableNumber == null ? Colors.grey[600] : Colors.black, fontSize: 16)
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -691,6 +1008,7 @@ class _POSScreenState extends State<POSScreen> {
                                   flex: 7,
                                   child: Column(
                                     children: [
+                                      orderInfoBar,
                                       categoryBar,
                                       productContent,
                                     ],
@@ -706,6 +1024,7 @@ class _POSScreenState extends State<POSScreen> {
 
                         return Column(
                           children: [
+                            orderInfoBar,
                             categoryBar,
                             productContent,
                           ],

@@ -24,7 +24,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _refresh() {
     setState(() {
-      _transactionsFuture = _db.getAll('transactions', orderBy: 'id DESC');
+      _transactionsFuture = _db.getAll('transactions', where: "status != 'Draft'", orderBy: 'id DESC');
     });
   }
 

@@ -173,7 +173,9 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
       DatabaseService.hasUnsyncedChanges = true;
       if (mounted) {
         try {
-          Provider.of<ShiftProvider>(context, listen: false).checkActiveShift();
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          final cashierName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Owner';
+          Provider.of<ShiftProvider>(context, listen: false).checkActiveShift(cashierName);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Pesanan online yang lunas otomatis disinkronkan ke Laporan POS!'),
@@ -197,17 +199,17 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
   void _copyLink() {
     Clipboard.setData(ClipboardData(text: _storeUrl()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🔗 Link toko berhasil disalin!'),
-        backgroundColor: Color(0xFF006d77),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Text('🔗 Link toko berhasil disalin!'),
+        backgroundColor: Theme.of(context).primaryColor,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final primary = const Color(0xFF006d77);
+    final primary = Theme.of(context).primaryColor;
 
     if (_loading) {
       return Scaffold(
@@ -743,7 +745,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
 
   Widget _statusOption(BuildContext ctx, Map<String, dynamic> o, String value, String label, String currentStatus, StateSetter setSheetState) {
     final isSelected = currentStatus == value;
-    final primary = const Color(0xFF006d77);
+    final primary = Theme.of(ctx).primaryColor;
     return InkWell(
       onTap: isSelected ? null : () async {
         final oldStatus = o['status'];
@@ -806,7 +808,9 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
               });
               DatabaseService.hasUnsyncedChanges = true;
               if (ctx.mounted) {
-                Provider.of<ShiftProvider>(ctx, listen: false).checkActiveShift();
+                final auth = Provider.of<AuthProvider>(ctx, listen: false);
+                final cashierName = auth.currentStaff?.name ?? auth.storeInfo['ownerName'] ?? 'Owner';
+                Provider.of<ShiftProvider>(ctx, listen: false).checkActiveShift(cashierName);
                 ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Pesanan otomatis masuk ke Laporan POS!'), backgroundColor: Colors.green));
               }
             }
@@ -863,37 +867,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Saldo card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF006d77), Color(0xFF004d55)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('💰 Saldo Toko Online', style: TextStyle(color: Colors.white70, fontSize: 13)),
-            const SizedBox(height: 8),
-            Text(_formatRupiah(_balance),
-                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('/${_slug ?? '-'}',
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ]),
-          ]),
-        ),
-        const SizedBox(height: 20),
+
 
         // Link toko
         const Text('🔗 Link Toko Online', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -911,7 +885,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
           child: Row(children: [
             Expanded(
               child: Text(_storeUrl(),
-                  style: const TextStyle(color: Color(0xFF006d77), fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: TextStyle(color: primary, fontWeight: FontWeight.w600, fontSize: 13)),
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
@@ -1035,7 +1009,7 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen>
                   setDialogState(() => saving = false);
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF006d77), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor, foregroundColor: Colors.white),
               child: saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Simpan'),
             ),
           ],

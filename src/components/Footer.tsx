@@ -41,9 +41,6 @@ export const Footer = () => {
                         <p className="text-sm text-[var(--muted-foreground)] mb-2">
                             Punya pertanyaan? Tim kami siap membantu Anda 24/7.
                         </p>
-                        <a href="https://wa.me/6285157578692" className="text-sm font-medium text-[var(--primary)] hover:underline">
-                            Chat via WhatsApp
-                        </a>
                     </div>
                 </div>
 

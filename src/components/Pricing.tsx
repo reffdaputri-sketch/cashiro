@@ -12,7 +12,7 @@ const pricingPlans = [
         description: 'Akses penuh ke semua fitur Cashiro POS selamanya tanpa biaya bulanan atau tahunan.',
         features: ['Aplikasi Kasir Android', 'Laporan Laba Rugi Otomatis', 'Manajemen Stok & Kategori', 'Backup & Sinkronisasi Cloud', 'Manajemen Staf & Pelanggan', 'Support via WhatsApp'],
         isPopular: true,
-        ctaLink: 'https://wa.me/6285157578692?text=Halo+Admin%2C+saya+tertarik+untuk+berlangganan+Lisensi+Cashiro+Lifetime',
+        ctaLink: '/beli',
     },
 ];
 
@@ -64,7 +64,7 @@ export const Pricing = () => {
                             <Button
                                 variant="primary"
                                 className="w-full"
-                                onClick={() => window.open(plan.ctaLink, '_blank')}
+                                onClick={() => window.location.href = plan.ctaLink}
                             >
                                 Pilih Paket Ini
                             </Button>

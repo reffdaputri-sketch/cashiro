@@ -11,16 +11,16 @@ class SyncService {
   final List<String> _syncTables = [
     'categories',
     'suppliers',
+    'customers',
+    'staff',
+    'expenses',
+    'shifts',
     'products',
     'product_bundles',
     'product_variations',
     'stock_opname_history',
-    'shifts',
     'transactions',
     'transaction_items',
-    'expenses',
-    'customers',
-    'staff',
     'debt_payments'
   ];
 
@@ -153,6 +153,11 @@ class SyncService {
             );
 
             if (existing.isNotEmpty) {
+              // Jangan timpa jika data lokal belum selesai di-upload (is_synced = 0)
+              if (existing.first['is_synced'] == 0) {
+                continue;
+              }
+
               await txn.update(
                 table,
                 payload,

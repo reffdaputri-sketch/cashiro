@@ -76,14 +76,56 @@ class ProductProvider with ChangeNotifier {
   Future<void> addProductsInBatch(List<Product> productsList) async {
     final db = await _db.database;
     await db.transaction((txn) async {
+      List<Map<String, dynamic>> insertedProductsInfo = [];
+
       for (var product in productsList) {
         final id = await txn.insert('products', product.toMap()..['is_synced'] = 0);
+        
+        insertedProductsInfo.add({
+          'id': id,
+          'bundleItems': product.bundleItems,
+        });
+
         for (var v in product.variations) {
           final vMap = v.toMap();
           vMap['product_id'] = id;
           vMap.remove('id');
           vMap['is_synced'] = 0;
           await txn.insert('product_variations', vMap);
+        }
+      }
+
+      // Two-pass logic for bundles
+      final allExistingProducts = await txn.query('products', columns: ['id', 'name', 'code']);
+
+      for (var info in insertedProductsInfo) {
+        List<ProductBundleItem> bItems = info['bundleItems'];
+        if (bItems.isEmpty) continue;
+
+        final bundleProductId = info['id'];
+        for (var b in bItems) {
+          final refStr = b.itemName; // Temporary barcode or name
+          if (refStr == null || refStr.isEmpty) continue;
+
+          int? compId;
+          final codeMatch = allExistingProducts.where((row) => row['code']?.toString() == refStr);
+          if (codeMatch.isNotEmpty) {
+            compId = codeMatch.first['id'] as int;
+          } else {
+            final nameMatch = allExistingProducts.where((row) => row['name']?.toString().toLowerCase() == refStr.toLowerCase());
+            if (nameMatch.isNotEmpty) {
+              compId = nameMatch.first['id'] as int;
+            }
+          }
+
+          if (compId != null) {
+            final bMap = b.toMap();
+            bMap['bundle_product_id'] = bundleProductId;
+            bMap['item_product_id'] = compId;
+            bMap.remove('id');
+            bMap['is_synced'] = 0;
+            await txn.insert('product_bundles', bMap);
+          }
         }
       }
     });
@@ -191,28 +233,47 @@ class ProductProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> generateDemoData() async {
+  Future<void> generateDemoData(String demoType) async {
     _isLoading = true;
     notifyListeners();
 
     final now = DateTime.now();
-    final productNames = [
-      {'name': 'Air Mineral 600ml', 'cat': 'Minuman', 'basePrice': 3000},
-      {'name': 'Roti Tawar Kupas', 'cat': 'Makanan', 'basePrice': 15000},
-      {'name': 'Beras Premium 5kg', 'cat': 'Sembako', 'basePrice': 65000},
-      {'name': 'Minyak Goreng 2L', 'cat': 'Sembako', 'basePrice': 35000},
-      {'name': 'Keripik Kentang', 'cat': 'Snack', 'basePrice': 12000},
-      {'name': 'Wafer Coklat', 'cat': 'Snack', 'basePrice': 8000},
-      {'name': 'Kopi Instan 10x', 'cat': 'Minuman', 'basePrice': 15000},
-      {'name': 'Teh Botol 500ml', 'cat': 'Minuman', 'basePrice': 6000},
-      {'name': 'Gula Pasir 1kg', 'cat': 'Sembako', 'basePrice': 14000},
-      {'name': 'Telur Ayam 1kg', 'cat': 'Sembako', 'basePrice': 28000},
-      {'name': 'Mie Instan Goreng', 'cat': 'Makanan', 'basePrice': 3500},
-      {'name': 'Sabun Mandi Cair', 'cat': 'Sembako', 'basePrice': 25000},
-      {'name': 'Shampoo Sachet', 'cat': 'Sembako', 'basePrice': 1000},
-      {'name': 'Buku Tulis 38lbr', 'cat': 'Alat Tulis', 'basePrice': 4000},
-      {'name': 'Pulpen Hitam', 'cat': 'Alat Tulis', 'basePrice': 2000},
-    ];
+    List<Map<String, dynamic>> productNames = [];
+
+    if (demoType == 'fnb') {
+      productNames = [
+        {'name': 'Nasi Goreng Spesial', 'cat': 'Makanan', 'basePrice': 25000},
+        {'name': 'Mie Goreng Seafood', 'cat': 'Makanan', 'basePrice': 28000},
+        {'name': 'Ayam Bakar Madu', 'cat': 'Makanan', 'basePrice': 30000},
+        {'name': 'Es Teh Manis', 'cat': 'Minuman', 'basePrice': 5000},
+        {'name': 'Kopi Susu Gula Aren', 'cat': 'Minuman', 'basePrice': 18000},
+        {'name': 'Jus Alpukat', 'cat': 'Minuman', 'basePrice': 15000},
+        {'name': 'Kentang Goreng', 'cat': 'Snack', 'basePrice': 15000},
+        {'name': 'Roti Bakar Coklat Keju', 'cat': 'Snack', 'basePrice': 20000},
+      ];
+    } else if (demoType == 'retail') {
+      productNames = [
+        {'name': 'Kaos Polos Katun', 'cat': 'Pakaian', 'basePrice': 50000},
+        {'name': 'Celana Jeans Denim', 'cat': 'Pakaian', 'basePrice': 150000},
+        {'name': 'Topi Baseball', 'cat': 'Aksesoris', 'basePrice': 35000},
+        {'name': 'Sepatu Sneakers Kasual', 'cat': 'Sepatu', 'basePrice': 250000},
+        {'name': 'Jaket Hoodie Polos', 'cat': 'Pakaian', 'basePrice': 175000},
+        {'name': 'Kemeja Flanel Lengan Panjang', 'cat': 'Pakaian', 'basePrice': 120000},
+        {'name': 'Tas Ransel Punggung', 'cat': 'Aksesoris', 'basePrice': 200000},
+        {'name': 'Kaos Kaki Katun', 'cat': 'Aksesoris', 'basePrice': 15000},
+      ];
+    } else { // sembako
+      productNames = [
+        {'name': 'Beras Premium 5kg', 'cat': 'Sembako', 'basePrice': 65000},
+        {'name': 'Minyak Goreng 2L', 'cat': 'Sembako', 'basePrice': 35000},
+        {'name': 'Gula Pasir Putih 1kg', 'cat': 'Sembako', 'basePrice': 14000},
+        {'name': 'Telur Ayam Negeri 1kg', 'cat': 'Sembako', 'basePrice': 28000},
+        {'name': 'Sabun Mandi Cair 400ml', 'cat': 'Sembako', 'basePrice': 25000},
+        {'name': 'Mie Instan Goreng', 'cat': 'Makanan', 'basePrice': 3500},
+        {'name': 'Air Mineral 600ml', 'cat': 'Minuman', 'basePrice': 3000},
+        {'name': 'Kopi Instan Sachet 10x', 'cat': 'Minuman', 'basePrice': 15000},
+      ];
+    }
 
     final random = Random();
 

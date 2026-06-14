@@ -34,6 +34,7 @@ class ReceiptService {
     final showPhone = prefs.getBool('receipt_show_phone') ?? true;
     final showDate = prefs.getBool('receipt_show_date') ?? true;
     final showTransactionId = prefs.getBool('receipt_show_transaction_id') ?? true;
+    final paperSize = prefs.getString('receipt_paper_size') ?? '58mm';
 
     final pdf = pw.Document();
 
@@ -54,7 +55,7 @@ class ReceiptService {
 
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.roll80,
+        pageFormat: paperSize == '58mm' ? PdfPageFormat.roll57 : PdfPageFormat.roll80,
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,

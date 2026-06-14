@@ -68,7 +68,7 @@ export const Navbar = () => {
                                 <Download size={15} /> Download
                             </Button>
                         </Link>
-                        <Link href="/download">
+                        <Link href="/beli">
                             <Button size="sm">Daftar Sekarang</Button>
                         </Link>
                     </div>
@@ -112,8 +112,8 @@ export const Navbar = () => {
                                         <Download size={16} /> Download App
                                     </Button>
                                 </Link>
-                                <Link href="/download" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Button className="w-full justify-center">Daftar Gratis</Button>
+                                <Link href="/beli" onClick={() => setIsMobileMenuOpen(false)}>
+                                    <Button className="w-full justify-center">Daftar Sekarang</Button>
                                 </Link>
                             </div>
                         </div>
